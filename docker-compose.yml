@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: tafu-web
+    ports:
+      - "3000:3000"
+      - "24678:24678" # Vite HMR port
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    command: npm run dev -- --host
+
+  # Add this service if you plan to add a backend later
+  # api:
+  #   build: ./api
+  #   container_name: tafu-api
+  #   ports:
+  #     - "5000:5000"
+  #   environment:
+  #     - NODE_ENV=development 
