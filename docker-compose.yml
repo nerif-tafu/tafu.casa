@@ -14,21 +14,15 @@ services:
       - NODE_ENV=development
     command: npm run dev -- --host
 
-  rtmp:
-    build: ./nginx
-    container_name: tafu-rtmp
+  webrtc:
+    build: ./server
+    container_name: tafu-webrtc
     ports:
-      - "1935:1935"  # RTMP
-      - "8080:8080"  # HLS
+      - "3001:3001"      # WebSocket
+      - "2000-2020:2000-2020/udp"  # WebRTC media
     volumes:
-      - ./nginx/hls:/var/www/hls
-    restart: unless-stopped
-
-  # Add this service if you plan to add a backend later
-  # api:
-  #   build: ./api
-  #   container_name: tafu-api
-  #   ports:
-  #     - "5000:5000"
-  #   environment:
-  #     - NODE_ENV=development 
+      - ./server:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    command: npm run dev
