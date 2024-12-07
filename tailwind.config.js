@@ -1,22 +1,27 @@
 /** @type {import('tailwindcss').Config} */
-export default {
+module.exports = {
   content: ['./src/**/*.{html,js,svelte,ts}'],
-  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        'primary': '#2D3748',
-        'secondary': '#4A5568',
-        'accent': '#0000FF',
-        dark: {
-          DEFAULT: '#0F172A',  // Dark navy blue
-          lighter: '#1E293B'   // Slightly lighter navy blue
-        }
+        primary: 'rgb(250, 210, 0)',
+        secondary: 'rgb(115, 115, 200)',
+        tertiary: 'rgb(155, 200, 115)',
       },
-      fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+      animation: {
+        'scanline': 'scanline 10s linear infinite',
+        'pulse': 'pulse 4s ease-in-out infinite',
+      },
+      keyframes: {
+        scanline: {
+          '0%': { transform: 'translateY(0)' },
+          '100%': { transform: 'translateY(4px)' }
+        },
+        pulse: {
+          '0%, 100%': { opacity: 0.8 },
+          '50%': { opacity: 1 }
+        }
       }
-    },
-  },
-  plugins: [],
-} 
+    }
+  }
+}

@@ -1,9 +1,19 @@
 @tailwind base;
 @tailwind components;
-@tailwind utilities;
+@tailwind utilities; 
 
-@layer base {
-  html {
-    @apply antialiased;
-  }
+@font-face {
+  font-family: AlmendraDisplay;
+  src: url('/fonts/AlmendraDisplay-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+html {
+  background-color: black;
+  color: white;
+  font-family: AlmendraDisplay, monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 } 

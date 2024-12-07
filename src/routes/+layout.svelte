@@ -1,23 +1,24 @@
 <script>
   import "../app.css";
-  import ThemeToggle from "$lib/components/ThemeToggle.svelte";
   import Loading from "$lib/components/Loading.svelte";
+  import SplashScreen from "$lib/components/SplashScreen.svelte";
   import { navigating } from '$app/stores';
   import { onMount } from 'svelte';
 
+  let showingSplash = true;
+  let fontsLoaded = false;
+
   onMount(() => {
-    if (localStorage.getItem('theme') === 'dark' || 
-        (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    document.fonts.ready.then(() => {
+      fontsLoaded = true;
+    });
   });
 </script>
 
-{#if $navigating}
+{#if showingSplash}
+  <SplashScreen onComplete={() => showingSplash = false} />
+{:else if $navigating || !fontsLoaded}
   <Loading />
 {/if}
 
-<slot />
-<ThemeToggle /> 
+<slot /> 
