@@ -28,6 +28,29 @@
     window.location.reload();
   }
 
+  function resetCurrentCard() {
+    const currentPath = $page.url.pathname.slice(1);
+    
+    visitedCards.update(cards => {
+      const updatedCards = cards.map(card => {
+        if (card.id === currentPath) {
+          return { ...card, visited: false };
+        }
+        return card;
+      });
+      
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('visitedCards', JSON.stringify(updatedCards));
+        console.log('Reset card:', currentPath);
+        console.log('Updated cards:', updatedCards);
+      }
+      
+      return updatedCards;
+    });
+
+    window.location.reload();
+  }
+
   // Handle route changes
   function handleRoute(path) {
     const currentPath = path.slice(1);
@@ -95,6 +118,14 @@
   on:click={resetCards}
 >
   Reset Cards
+</button>
+
+<!-- Reset current card -->
+<button
+  class="fixed top-16 right-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/40 text-red-500 rounded"
+  on:click={resetCurrentCard}
+>
+  Reset Current Card
 </button>
 
 <slot />

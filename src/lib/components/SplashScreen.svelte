@@ -23,17 +23,23 @@
         showSplash = false;
         setTimeout(onComplete, 500);
       }, 1000); // Wait for move animation to complete
-    }, 1250);
+    }, 2250); // Increased from 1250 to 2250 to add 1 second delay
   });
 </script>
 
 {#if showSplash}
   <div 
-    class="fixed inset-0 flex items-center justify-center bg-black z-50"
+    class="fixed inset-0 flex flex-col items-center justify-center bg-black z-50"
     transition:fade={{ duration: 500 }}
   >
     <div 
-      class="relative w-64 h-64 perspective-1000"
+      class="text-4xl mb-0 text-white/80 animate-fade-in"
+      style="animation-delay: 250ms;"
+    >
+      New summoning
+    </div>
+    <div 
+      class="relative w-64 h-66 perspective-1000"
       class:move-to-deck={!showingCard}
     >
       <div class="w-full h-full transform-style-3d animate-fold">
@@ -62,6 +68,22 @@
   
   .move-to-deck {
     animation: moveToDeck 1s ease-in-out forwards;
+  }
+
+  .animate-fade-in {
+    opacity: 0;
+    animation: fadeIn 1s ease-out forwards;
+  }
+  
+  @keyframes fadeIn {
+    from { 
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to { 
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
   
   @keyframes fold {
