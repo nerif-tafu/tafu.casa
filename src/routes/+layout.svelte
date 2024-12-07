@@ -2,17 +2,85 @@
   import "../app.css";
   import Loading from "$lib/components/Loading.svelte";
   import SplashScreen from "$lib/components/SplashScreen.svelte";
-  import { navigating } from '$app/stores';
+  import CardDeck from "$lib/components/CardDeck.svelte";
+  import { navigating, page } from '$app/stores';
   import { onMount } from 'svelte';
+  import { writable } from 'svelte/store';
 
-  let showingSplash = true;
+  let showingSplash = false;
   let fontsLoaded = false;
+  const visitedCards = writable([]);
+
+  function initCards() {
+    const initialCards = [
+      { id: '', image: '/LITTLEBITSPACE-9_DEATHS1.png', visited: false },
+      { id: 'about', image: '/LITTLEBITSPACE-9_DEATHS2.png', visited: false },
+      { id: 'projects', image: '/LITTLEBITSPACE-9_DEATHS3.png', visited: false }
+    ];
+    
+    visitedCards.set(initialCards);
+    localStorage.setItem('visitedCards', JSON.stringify(initialCards));
+    console.log('Initialized cards:', initialCards);
+  }
+
+  function resetCards() {
+    localStorage.removeItem('visitedCards');
+    window.location.reload();
+  }
+
+  // Handle route changes
+  function handleRoute(path) {
+    const currentPath = path.slice(1);
+    console.log('Current path:', currentPath);
+    
+    visitedCards.update(cards => {
+      const card = cards.find(c => c.id === currentPath);
+      if (card && !card.visited) {
+        showingSplash = true;
+      }
+
+      const updatedCards = cards.map(card => {
+        if (card.id === currentPath) {
+          console.log('Marking as visited:', card.id);
+          return { ...card, visited: true };
+        }
+        return card;
+      });
+      
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('visitedCards', JSON.stringify(updatedCards));
+        console.log('Saved updated cards to localStorage:', updatedCards);
+      }
+      
+      return updatedCards;
+    });
+  }
 
   onMount(() => {
     document.fonts.ready.then(() => {
       fontsLoaded = true;
     });
+    
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('visitedCards');
+      if (stored) {
+        console.log('Stored cards found!');
+        const parsedCards = JSON.parse(stored);
+        visitedCards.set(parsedCards);
+        console.log('Loaded from localStorage:', parsedCards);
+      } else {
+        initCards();
+      }
+    }
+
+    // Handle initial route
+    handleRoute($page.url.pathname);
   });
+
+  // Handle route changes
+  $: if ($page) {
+    // handleRoute($page.url.pathname);
+  }
 </script>
 
 {#if showingSplash}
@@ -21,4 +89,14 @@
   <Loading />
 {/if}
 
-<slot /> 
+<!-- Debug Reset Button -->
+<button
+  class="fixed top-4 right-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/40 text-red-500 rounded"
+  on:click={resetCards}
+>
+  Reset Cards
+</button>
+
+<slot />
+
+<CardDeck cards={$visitedCards} /> 

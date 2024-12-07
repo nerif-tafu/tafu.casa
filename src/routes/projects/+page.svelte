@@ -3,21 +3,20 @@
     <hr class="border-gray-200/20">
     
     <section>
-      <h1 class="text-4xl font-bold">Home</h1>
+      <h1 class="text-4xl font-bold">Projects</h1>
     </section>
     
     <hr class="border-gray-200/20">
     
     <section class="space-y-4">
-      <p>Welcome to tafu.casa. This is the home page.</p>
+      <p>Here are some of my projects.</p>
+      <ul class="space-y-3">
+        <li>Project 1</li>
+        <li>Project 2</li>
+        <li>Project 3</li>
+      </ul>
     </section>
     
     <hr class="border-gray-200/20">
   </div>
-</main>
-
-<style>
-  :global(html) {
-    scroll-behavior: smooth;
-  }
-</style> 
+</main> 
