@@ -15,7 +15,8 @@
     const initialCards = [
       { id: '', image: '/LITTLEBITSPACE-9_DEATHS1.png', visited: false },
       { id: 'about', image: '/LITTLEBITSPACE-9_DEATHS2.png', visited: false },
-      { id: 'projects', image: '/LITTLEBITSPACE-9_DEATHS3.png', visited: false }
+      { id: 'projects', image: '/LITTLEBITSPACE-9_DEATHS3.png', visited: false },
+      { id: 'stream', image: '/LITTLEBITSPACE-9_DEATHS3.png', visited: false }
     ];
     
     visitedCards.set(initialCards);
