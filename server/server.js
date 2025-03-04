@@ -87,6 +87,16 @@ io.on('connection', socket => {
       socket.to(broadcaster).emit('disconnectPeer', socket.id);
     }
   });
+
+  socket.on('quality-change', (quality) => {
+    if (broadcaster) {
+      socket.to(broadcaster).emit('quality-change', socket.id, quality);
+    }
+  });
+
+  socket.on('quality-updated', (id, quality) => {
+    socket.to(id).emit('quality-updated', quality);
+  });
 });
 
 const startServer = async () => {

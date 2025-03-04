@@ -15,11 +15,32 @@
   let maxReconnectAttempts = 5;
   let isWaitingForStream = false;
   let pendingOffer = false;
+  let currentQuality = 'high';  // Replace currentBitrate
 
   const bitrateSettings = {
     high: 2500000,
     medium: 1000000,
     low: 500000
+  };
+
+  const qualitySettings = {
+    high: { label: 'HD', resolution: '1280x720' },
+    medium: { label: 'SD', resolution: '854x480' },
+    low: { label: 'Low', resolution: '640x360' }
+  };
+
+  // Add more STUN/TURN servers for better connectivity
+  const rtcConfig = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' }
+    ],
+    iceTransportPolicy: 'all',
+    iceCandidatePoolSize: 10,
+    bundlePolicy: 'max-bundle'
   };
 
   const getServerUrl = () => {
@@ -76,7 +97,6 @@
     socket.on('offer', (id, description) => {
       console.log('Received offer from broadcaster');
       
-      // Prevent multiple simultaneous offer processing
       if (pendingOffer) {
         console.log('Ignoring offer - another offer is being processed');
         return;
@@ -85,18 +105,59 @@
       pendingOffer = true;
 
       try {
-        // Only cleanup if we don't have a working connection
         if (!peerConnection || peerConnection.connectionState !== 'connected') {
           console.log('Cleaning up old connection');
           cleanupConnection();
         }
 
         if (!peerConnection) {
-          peerConnection = new RTCPeerConnection({
-            iceServers: [
-              { urls: 'stun:stun.l.google.com:19302' }
-            ]
-          });
+          peerConnection = new RTCPeerConnection(rtcConfig);
+
+          // Add ICE connection monitoring
+          let iceConnectionTimeout;
+          let iceCandidatesComplete = false;
+
+          peerConnection.onicecandidate = event => {
+            if (event.candidate) {
+              console.log('Sending ICE candidate');
+              socket.emit('candidate', id, event.candidate);
+            } else {
+              console.log('ICE gathering complete');
+              iceCandidatesComplete = true;
+            }
+          };
+
+          peerConnection.onicegatheringstatechange = () => {
+            console.log('ICE gathering state:', peerConnection.iceGatheringState);
+          };
+
+          peerConnection.oniceconnectionstatechange = () => {
+            const state = peerConnection.iceConnectionState;
+            console.log('ICE connection state:', state);
+            
+            // Clear any existing timeout
+            if (iceConnectionTimeout) {
+              clearTimeout(iceConnectionTimeout);
+            }
+
+            if (state === 'checking') {
+              // Set timeout for ICE connection
+              iceConnectionTimeout = setTimeout(() => {
+                if (peerConnection.iceConnectionState === 'checking') {
+                  console.log('ICE connection timeout, restarting');
+                  peerConnection.restartIce();
+                }
+              }, 5000);
+            } else if (state === 'disconnected' || state === 'failed') {
+              console.log('Connection lost, attempting to reconnect');
+              isReconnecting = true;
+              cleanupConnection();
+              socket.emit('watcher');
+            } else if (state === 'connected') {
+              console.log('Connection established');
+              isReconnecting = false;
+            }
+          };
 
           peerConnection.ontrack = event => {
             console.log('Received media track:', {
@@ -108,7 +169,8 @@
             
             if (!remoteVideo.srcObject) {
               console.log('Creating new MediaStream');
-              remoteVideo.srcObject = new MediaStream();
+              const newStream = new MediaStream();
+              remoteVideo.srcObject = newStream;
             }
             
             const stream = remoteVideo.srcObject;
@@ -116,6 +178,15 @@
             console.log(`Added ${event.track.kind} track to stream`);
             
             if (event.track.kind === 'video') {
+              // Monitor video track state
+              const monitorVideoTrack = () => {
+                if (event.track.muted || !event.track.enabled) {
+                  console.log('Video track disabled, attempting to recover');
+                  peerConnection.restartIce();
+                }
+              };
+              setInterval(monitorVideoTrack, 2000);
+
               tryAutoplay();
             }
 
@@ -136,25 +207,6 @@
 
             isConnected = true;
             isWaitingForStream = false;
-          };
-
-          peerConnection.oniceconnectionstatechange = () => {
-            const state = peerConnection.iceConnectionState;
-            console.log('ICE connection state:', state);
-            
-            if (state === 'disconnected' || state === 'failed') {
-              console.log('Connection lost, attempting to reconnect');
-              isReconnecting = true;
-              cleanupConnection();
-              socket.emit('watcher');
-            } else if (state === 'connected') {
-              console.log('Connection established');
-              isReconnecting = false;
-            }
-          };
-
-          peerConnection.onconnectionstatechange = () => {
-            console.log('Connection state change:', peerConnection.connectionState);
           };
         }
 
@@ -202,20 +254,21 @@
       console.error('Connection Error:', error);
       isReconnecting = true;
     });
+
+    socket.on('quality-updated', (quality) => {
+      console.log(`Quality updated to ${quality}`);
+      currentQuality = quality;
+    });
   };
 
   const setQuality = (quality) => {
-    if (!peerConnection) return;
+    if (!peerConnection || !socket) return;
     
-    currentBitrate = bitrateSettings[quality];
-    const sender = peerConnection.getSenders().find(s => s?.track?.kind === 'video');
+    console.log(`Requesting quality change to ${quality}`);
+    socket.emit('quality-change', quality);
     
-    if (sender) {
-      const params = sender.getParameters();
-      if (!params.encodings) params.encodings = [{}];
-      params.encodings[0].maxBitrate = currentBitrate;
-      sender.setParameters(params).catch(e => console.error('Error setting bitrate:', e));
-    }
+    // Update UI immediately but wait for confirmation
+    currentQuality = quality;
   };
 
   const toggleFullscreen = (element) => {
@@ -346,24 +399,14 @@
 
               <!-- Quality buttons -->
               <div class="flex gap-2">
-                <button
-                  class="px-3 py-1 text-sm bg-white/10 hover:bg-white/20 rounded text-white {currentBitrate === bitrateSettings.high ? 'bg-white/30' : ''}"
-                  on:click={() => setQuality('high')}
-                >
-                  HD
-                </button>
-                <button
-                  class="px-3 py-1 text-sm bg-white/10 hover:bg-white/20 rounded text-white {currentBitrate === bitrateSettings.medium ? 'bg-white/30' : ''}"
-                  on:click={() => setQuality('medium')}
-                >
-                  SD
-                </button>
-                <button
-                  class="px-3 py-1 text-sm bg-white/10 hover:bg-white/20 rounded text-white {currentBitrate === bitrateSettings.low ? 'bg-white/30' : ''}"
-                  on:click={() => setQuality('low')}
-                >
-                  Low
-                </button>
+                {#each Object.entries(qualitySettings) as [quality, settings]}
+                  <button
+                    class="px-3 py-1 text-sm bg-white/10 hover:bg-white/20 rounded text-white {currentQuality === quality ? 'bg-white/30' : ''}"
+                    on:click={() => setQuality(quality)}
+                  >
+                    {settings.label}
+                  </button>
+                {/each}
               </div>
             </div>
 

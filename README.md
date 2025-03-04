@@ -41,6 +41,10 @@ A homepage for tafu.casa.
 4. Access the development site:
    - Web app (no SSL): http://localhost:3000
    - Web app (SSL): https://localhost:3443
+   - Streaming (no SSL): http://localhost:8080
+   - Streaming (SSL): https://localhost:8443
+   - WebRTC (no SSL): ws://localhost:3001
+   - WebRTC (SSL): wss://localhost:3001
 
 Note: The development certificates are automatically trusted by your browser thanks to mkcert.
 

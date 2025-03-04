@@ -210,6 +210,38 @@
         }
       });
     });
+
+    socket.on('quality-change', (id, quality) => {
+      console.log(`Quality change request from ${id} to ${quality}`);
+      const peerConnection = peerConnections.get(id);
+      if (!peerConnection) return;
+
+      const sender = peerConnection.getSenders().find(s => s.track?.kind === 'video');
+      if (!sender) return;
+
+      // Apply new constraints to the video track
+      const settings = qualitySettings[quality];
+      const videoTrack = localStream.getVideoTracks()[0];
+      
+      videoTrack.applyConstraints({
+        width: { ideal: settings.video.width },
+        height: { ideal: settings.video.height },
+        frameRate: { ideal: settings.video.frameRate }
+      }).then(() => {
+        // Update encoding parameters
+        const params = sender.getParameters();
+        if (!params.encodings) params.encodings = [{}];
+        params.encodings[0].maxBitrate = settings.video.bitrate;
+        params.encodings[0].maxFramerate = settings.video.frameRate;
+        
+        return sender.setParameters(params);
+      }).then(() => {
+        console.log(`Quality updated for peer ${id} to ${quality}`);
+        socket.emit('quality-updated', id, quality);
+      }).catch(error => {
+        console.error('Error updating quality:', error);
+      });
+    });
   };
 
   const loadDevices = async () => {
