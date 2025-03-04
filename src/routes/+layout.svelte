@@ -1,5 +1,6 @@
 <script>
   import "../app.css";
+  import { fade } from 'svelte/transition';
   import Loading from "$lib/components/Loading.svelte";
   import SplashScreen from "$lib/components/SplashScreen.svelte";
   import CardDeck from "$lib/components/CardDeck.svelte";
@@ -113,6 +114,13 @@
   <SplashScreen onComplete={() => showingSplash = false} />
 {:else if $navigating || !fontsLoaded}
   <Loading />
+{:else}
+  <div 
+    in:fade={{ duration: 300, delay: 150 }}
+    out:fade={{ duration: 150 }}
+  >
+    <slot />
+  </div>
 {/if}
 
 {#if isDev}
@@ -132,7 +140,5 @@
     Reset Current Card
   </button>
 {/if}
-
-<slot />
 
 <CardDeck cards={$visitedCards} /> 
