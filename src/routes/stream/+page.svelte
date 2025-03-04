@@ -37,12 +37,18 @@
   let selectedAudioDevice = '';
   let selectedResolution = '720p';
 
+  let supportedResolutions = [];
+
   const resolutionOptions = {
     '1080p': { width: 1920, height: 1080, frameRate: 30 },
     '720p': { width: 1280, height: 720, frameRate: 30 },
     '480p': { width: 854, height: 480, frameRate: 30 },
     '360p': { width: 640, height: 360, frameRate: 30 }
   };
+
+  let previewStream = null;
+  let selectedSource = 'camera';
+  let isPreviewActive = false;
 
   const getServerUrl = () => {
     const hostname = window.location.hostname;
@@ -253,6 +259,8 @@
       // Set defaults if not already set
       if (!selectedVideoDevice && devices.videoInputs.length) {
         selectedVideoDevice = devices.videoInputs[0].deviceId;
+        // Get supported resolutions for the default camera
+        await updateSupportedResolutions(selectedVideoDevice);
       }
       if (!selectedAudioDevice && devices.audioInputs.length) {
         selectedAudioDevice = devices.audioInputs[0].deviceId;
@@ -262,19 +270,141 @@
     }
   };
 
+  const updateSupportedResolutions = async (deviceId) => {
+    try {
+      // Get a temporary stream to access capabilities
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: deviceId } }
+      });
+      
+      const track = stream.getVideoTracks()[0];
+      const capabilities = track.getCapabilities();
+      
+      // Stop the temporary stream
+      stream.getTracks().forEach(track => track.stop());
+
+      // Get supported width/height combinations
+      const widths = capabilities.width?.max ? [
+        Math.min(1920, capabilities.width.max),
+        Math.min(1280, capabilities.width.max),
+        Math.min(854, capabilities.width.max),
+        Math.min(640, capabilities.width.max)
+      ].filter(w => w >= (capabilities.width?.min || 0)) : [];
+
+      const heights = capabilities.height?.max ? [
+        Math.min(1080, capabilities.height.max),
+        Math.min(720, capabilities.height.max),
+        Math.min(480, capabilities.height.max),
+        Math.min(360, capabilities.height.max)
+      ].filter(h => h >= (capabilities.height?.min || 0)) : [];
+
+      // Create resolution options
+      supportedResolutions = widths.map((width, index) => {
+        const height = heights[index];
+        return {
+          label: `${height}p (${width}x${height})`,
+          value: `${height}p`,
+          width,
+          height,
+          frameRate: Math.min(30, capabilities.frameRate?.max || 30)
+        };
+      }).filter(res => res.height <= (capabilities.height?.max || 1080));
+
+      console.log('Supported resolutions:', supportedResolutions);
+
+      // Update selected resolution if current one isn't supported
+      if (!supportedResolutions.find(r => r.value === selectedResolution)) {
+        selectedResolution = supportedResolutions[0]?.value || '720p';
+      }
+    } catch (error) {
+      console.error('Error getting supported resolutions:', error);
+      // Fallback to default resolutions
+      supportedResolutions = [
+        { label: '720p (1280x720)', value: '720p', width: 1280, height: 720, frameRate: 30 },
+        { label: '480p (854x480)', value: '480p', width: 854, height: 480, frameRate: 30 },
+        { label: '360p (640x360)', value: '360p', width: 640, height: 360, frameRate: 30 }
+      ];
+    }
+  };
+
+  const startPreview = async (source = 'camera') => {
+    try {
+      // Stop any existing preview
+      if (previewStream) {
+        previewStream.getTracks().forEach(track => track.stop());
+      }
+
+      let stream;
+      if (source === 'camera') {
+        const resolution = supportedResolutions.find(r => r.value === selectedResolution);
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: selectedAudioDevice ? { deviceId: { exact: selectedAudioDevice } } : true,
+          video: {
+            deviceId: selectedVideoDevice ? { exact: selectedVideoDevice } : undefined,
+            width: { ideal: resolution.width },
+            height: { ideal: resolution.height },
+            frameRate: { ideal: resolution.frameRate }
+          }
+        });
+      } else {
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            cursor: "always",
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            frameRate: { ideal: 30 }
+          },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: 44100
+          }
+        });
+
+        // Get microphone audio for screen share
+        try {
+          const audioStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
+          });
+          stream = new MediaStream([
+            ...stream.getVideoTracks(),
+            ...audioStream.getAudioTracks(),
+            ...stream.getAudioTracks()
+          ]);
+        } catch (error) {
+          console.warn('Could not get microphone access:', error);
+        }
+
+        // Handle screen share stop
+        stream.getVideoTracks()[0].onended = () => {
+          selectedSource = 'camera';
+          startPreview('camera');
+        };
+      }
+
+      previewStream = stream;
+      localVideo.srcObject = stream;
+      isPreviewActive = true;
+      selectedSource = source;
+    } catch (error) {
+      console.error('Error starting preview:', error);
+      isPreviewActive = false;
+    }
+  };
+
   const startStream = async () => {
     try {
-      const resolution = resolutionOptions[selectedResolution];
-      localStream = await navigator.mediaDevices.getUserMedia({
-        audio: selectedAudioDevice ? { deviceId: { exact: selectedAudioDevice } } : true,
-        video: {
-          deviceId: selectedVideoDevice ? { exact: selectedVideoDevice } : undefined,
-          width: { ideal: resolution.width },
-          height: { ideal: resolution.height },
-          frameRate: { ideal: resolution.frameRate }
-        }
-      });
-      localVideo.srcObject = localStream;
+      if (!previewStream) {
+        throw new Error('No preview stream available');
+      }
+
+      // Use the preview stream for the actual stream
+      localStream = previewStream;
+      previewStream = null;
       
       connectSocket();
       isStreaming = true;
@@ -291,6 +421,7 @@
       peerConnections.clear();
       socket?.disconnect();
       isStreaming = false;
+      isPreviewActive = false;
     }
   };
 
@@ -352,28 +483,32 @@
   onMount(async () => {
     if (browser) {
       try {
-        // Request permissions first
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        stream.getTracks().forEach(track => track.stop()); // Stop the test stream
-        await loadDevices(); // Now load devices after permissions granted
-
-        // Watch for device changes
+        await loadDevices();
         navigator.mediaDevices.addEventListener('devicechange', loadDevices);
+        
+        // Auto-start camera preview
+        await startPreview('camera');
       } catch (error) {
-        console.error('Error requesting permissions:', error);
+        console.error('Error during initialization:', error);
       }
     }
 
     return () => {
-      if (statsInterval) {
-        clearInterval(statsInterval);
-      }
+      if (statsInterval) clearInterval(statsInterval);
       stopStream();
       if (browser) {
         navigator.mediaDevices.removeEventListener('devicechange', loadDevices);
       }
     };
   });
+
+  // Update camera selection handler
+  const onCameraChange = async () => {
+    await updateSupportedResolutions(selectedVideoDevice);
+    if (selectedSource === 'camera') {
+      startPreview('camera');
+    }
+  };
 </script>
 
 <main class="container mx-auto px-4 py-16">
@@ -381,17 +516,50 @@
     <section class="space-y-4">
       <h1 class="text-4xl font-bold mb-8">Stream</h1>
       
-      <!-- Stream Setup -->
+      <!-- Source Selection -->
       {#if !isStreaming}
-        <div class="space-y-4 mb-6">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="flex gap-2 mb-4">
+          <button
+            class="px-4 py-2 rounded {selectedSource === 'camera' ? 'bg-blue-500' : 'bg-white/10'} hover:bg-blue-600"
+            on:click={() => startPreview('camera')}
+          >
+            <div class="flex items-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Camera
+            </div>
+          </button>
+
+          <button
+            class="px-4 py-2 rounded {selectedSource === 'screen' ? 'bg-blue-500' : 'bg-white/10'} hover:bg-blue-600"
+            on:click={() => startPreview('screen')}
+          >
+            <div class="flex items-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              Share Screen
+            </div>
+          </button>
+        </div>
+
+        <!-- Camera Settings -->
+        {#if selectedSource === 'camera' && !isStreaming}
+          <div class="space-y-4 md:space-y-0 md:flex md:gap-4 md:items-center mb-6 bg-white/5 p-3 rounded">
             <!-- Camera Selection -->
-            <div class="space-y-2">
-              <label class="block text-sm font-medium" for="camera">Camera</label>
+            <div class="space-y-2 md:space-y-0 md:flex-1 md:min-w-0">
+              <label 
+                class="block text-sm font-medium md:text-xs md:text-white/70 md:mb-1" 
+                for="camera"
+              >
+                Camera
+              </label>
               <select
                 id="camera"
                 bind:value={selectedVideoDevice}
-                class="w-full px-3 py-2 bg-white/5 rounded border border-white/10"
+                on:change={onCameraChange}
+                class="w-full px-3 py-2 md:px-2 md:py-1 md:text-sm bg-white/5 md:bg-black/20 rounded border border-white/10"
               >
                 {#each devices.videoInputs as device}
                   <option value={device.deviceId}>{device.label || `Camera ${device.deviceId.slice(0,4)}`}</option>
@@ -400,35 +568,44 @@
             </div>
 
             <!-- Microphone Selection -->
-            <div class="space-y-2">
-              <label class="block text-sm font-medium" for="microphone">Microphone</label>
+            <div class="space-y-2 md:space-y-0 md:flex-1 md:min-w-0">
+              <label 
+                class="block text-sm font-medium md:text-xs md:text-white/70 md:mb-1" 
+                for="microphone"
+              >
+                Microphone
+              </label>
               <select
                 id="microphone"
                 bind:value={selectedAudioDevice}
-                class="w-full px-3 py-2 bg-white/5 rounded border border-white/10"
+                class="w-full px-3 py-2 md:px-2 md:py-1 md:text-sm bg-white/5 md:bg-black/20 rounded border border-white/10"
               >
                 {#each devices.audioInputs as device}
-                  <option value={device.deviceId}>{device.label || `Microphone ${device.deviceId.slice(0,4)}`}</option>
+                  <option value={device.deviceId}>{device.label || `Mic ${device.deviceId.slice(0,4)}`}</option>
+                {/each}
+              </select>
+            </div>
+
+            <!-- Resolution Selection -->
+            <div class="space-y-2 md:space-y-0 md:flex-1 md:min-w-0">
+              <label 
+                class="block text-sm font-medium md:text-xs md:text-white/70 md:mb-1" 
+                for="resolution"
+              >
+                Resolution
+              </label>
+              <select
+                id="resolution"
+                bind:value={selectedResolution}
+                class="w-full px-3 py-2 md:px-2 md:py-1 md:text-sm bg-white/5 md:bg-black/20 rounded border border-white/10"
+              >
+                {#each supportedResolutions as res}
+                  <option value={res.value}>{res.label}</option>
                 {/each}
               </select>
             </div>
           </div>
-
-          <!-- Resolution Selection -->
-          <div class="space-y-2">
-            <label class="block text-sm font-medium" for="resolution">Resolution</label>
-            <select
-              id="resolution"
-              bind:value={selectedResolution}
-              class="w-full px-3 py-2 bg-white/5 rounded border border-white/10"
-            >
-              <option value="1080p">1080p (1920x1080)</option>
-              <option value="720p">720p (1280x720)</option>
-              <option value="480p">480p (854x480)</option>
-              <option value="360p">360p (640x360)</option>
-            </select>
-          </div>
-        </div>
+        {/if}
       {/if}
 
       <!-- Video Preview/Stream -->
@@ -469,11 +646,13 @@
         </div>
       </div>
 
+      <!-- Stream Control Buttons -->
       <div class="flex justify-center gap-4 mt-4">
         {#if !isStreaming}
           <button
             on:click={startStream}
             class="px-6 py-2 bg-primary/20 hover:bg-primary/40 text-primary rounded"
+            disabled={!isPreviewActive}
           >
             Start Stream
           </button>

@@ -8,9 +8,10 @@
   let showingCard = true;
   
   const cardImages = {
-    '': '/LITTLEBITSPACE-9_DEATHS4.png',
-    'about': '/LITTLEBITSPACE-9_DEATHS2-0.png',
-    'projects': '/LITTLEBITSPACE-9_DEATHS3-0.png'
+    '': '/LITTLEBITSPACE-9_DEATHS-BLACK.png',
+    'about': '/LITTLEBITSPACE-9_DEATHS-GREEN.png',
+    'projects': '/LITTLEBITSPACE-9_DEATHS-BLUE.png',
+    'stream': '/LITTLEBITSPACE-9_DEATHS-ORANGE.png',
   };
 
   $: currentPath = $page.url.pathname.slice(1);
@@ -33,7 +34,7 @@
     transition:fade={{ duration: 500 }}
   >
     <div 
-      class="text-4xl mb-0 text-white/80 animate-fade-in"
+      class="text-4xl mb-8 text-white/80 animate-fade-in"
       style="animation-delay: 250ms;"
     >
       Unlocked a new page...

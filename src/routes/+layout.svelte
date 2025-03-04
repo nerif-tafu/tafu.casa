@@ -15,10 +15,10 @@
 
   function initCards() {
     const initialCards = [
-      { id: '', image: '/LITTLEBITSPACE-9_DEATHS4.png', visited: false },
-      { id: 'about', image: '/LITTLEBITSPACE-9_DEATHS2-0.png', visited: false },
-      { id: 'projects', image: '/LITTLEBITSPACE-9_DEATHS3-0.png', visited: false },
-      { id: 'stream', image: '/LITTLEBITSPACE-9_DEATHS3.png', visited: false }
+      { id: '', image: '/LITTLEBITSPACE-9_DEATHS-BLACK.png', visited: false },
+      { id: 'about', image: '/LITTLEBITSPACE-9_DEATHS-GREEN.png', visited: false },
+      { id: 'projects', image: '/LITTLEBITSPACE-9_DEATHS-BLUE.png', visited: false },
+      { id: 'stream', image: '/LITTLEBITSPACE-9_DEATHS-ORANGE.png', visited: false }
     ];
     
     visitedCards.set(initialCards);
