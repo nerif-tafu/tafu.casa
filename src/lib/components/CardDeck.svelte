@@ -4,7 +4,7 @@
   import { cubicOut } from 'svelte/easing';
   import { goto, afterNavigate } from '$app/navigation';
   import { browser } from '$app/environment';
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
 
   export let cards = [];
 
@@ -37,6 +37,39 @@
 
   // Add vibration intensity to script section
   let vibrationIntensity = 0;
+
+  // Add touch event tracking
+  let touchId = null;
+
+  // Add state to track if we're on mobile
+  let isMobile = false;
+  let lastTapTime = 0;
+
+  // Check if we're on mobile when the component mounts
+  onMount(() => {
+    isMobile = 'ontouchstart' in window;
+    
+    if (isMobile) {
+      document.addEventListener('click', handleDocumentClick);
+    }
+    
+    return () => {
+      if (isMobile) {
+        document.removeEventListener('click', handleDocumentClick);
+      }
+    };
+  });
+
+  // Handle clicks outside the deck
+  function handleDocumentClick(event) {
+    if (!isMobile || !isExpanded || draggedCard.element) return;
+    
+    // Check if click was inside the deck container
+    const deckContainer = document.querySelector('.deck-container');
+    if (deckContainer && !deckContainer.contains(event.target)) {
+      isExpanded = false;
+    }
+  }
 
   function createDot(x, y, colour) {
     const dot = document.createElement('div');
@@ -129,63 +162,114 @@
     { duration: 500, easing: cubicOut }
   );
 
+  // Handle tap/click to expand
+  function handleTapToExpand(event) {
+    if (!isMobile) return;
+    
+    event.preventDefault();
+    const currentTime = Date.now();
+    
+    // Prevent double-tap zoom on mobile
+    if (currentTime - lastTapTime < 300) {
+      event.preventDefault();
+      return;
+    }
+    
+    lastTapTime = currentTime;
+    
+    if (!isExpanded) {
+      isExpanded = true;
+      return;
+    }
+  }
+
   // Handle card pickup
   function pickupCard(event, card) {
-    if (!browser || event.button !== 0) return;
+    if (!browser) return;
+    if (isMobile && !isExpanded) return;
+    
     event.preventDefault();
 
     const element = event.currentTarget;
     let rect = element.getBoundingClientRect();
+
+    // Get coordinates from either mouse or touch event
+    const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+    const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+
+    if (event.touches) {
+      touchId = event.touches[0].identifier;
+    }
 
     // Store initial state
     draggedCard = {
       element,
       rect,
       card,
-      startX: event.clientX,
-      startY: event.clientY,
+      startX: clientX,
+      startY: clientY,
       x: 0,
       y: 0,
-      isReleased: false  // Reset flag when picking up
+      isReleased: false
     };
 
-    setTimeout(()=> {
+    setTimeout(() => {
       rect = element.getBoundingClientRect();
-      let currentXDif = (rect.left + (rect.width / 2)) - event.clientX
-      let currentYDif = (rect.top + (rect.height / 2)) - event.clientY
+      let currentXDif = (rect.left + (rect.width / 2)) - clientX;
+      let currentYDif = (rect.top + (rect.height / 2)) - clientY;
 
-      draggedCard.startX = event.clientX + currentXDif;
-      draggedCard.startY = event.clientY + currentYDif;
+      draggedCard.startX = clientX + currentXDif;
+      draggedCard.startY = clientY + currentYDif;
 
       // Calculate new position
-      draggedCard.x = event.clientX - draggedCard.startX;
-      draggedCard.y = event.clientY - draggedCard.startY;
+      draggedCard.x = clientX - draggedCard.startX;
+      draggedCard.y = clientY - draggedCard.startY;
 
       // Update position
       cardPosition.set({ x: draggedCard.x, y: draggedCard.y });
 
-      // Add drag listeners
+      // Add event listeners
       if (browser) {
-        window.addEventListener('mousemove', moveCard);
-        window.addEventListener('mouseup', releaseCard);
+        if (event.touches) {
+          window.addEventListener('touchmove', moveCard, { passive: false });
+          window.addEventListener('touchend', releaseCard);
+          window.addEventListener('touchcancel', releaseCard);
+        } else {
+          window.addEventListener('mousemove', moveCard);
+          window.addEventListener('mouseup', releaseCard);
+        }
         element.style.cursor = 'grabbing';
         document.body.classList.add('dragging');
       }
-    }, 10)
+    }, 10);
   }
 
   // Handle card movement
   function moveCard(event) {
     if (!draggedCard.element) return;
+    event.preventDefault();
 
-    draggedCard.x = event.clientX - draggedCard.startX;
-    draggedCard.y = event.clientY - draggedCard.startY;
+    // Get coordinates from either mouse or touch event
+    let clientX, clientY;
+    if (event.touches) {
+      // Find the touch with matching ID
+      const touch = Array.from(event.touches).find(t => t.identifier === touchId);
+      if (!touch) return;
+      clientX = touch.clientX;
+      clientY = touch.clientY;
+    } else {
+      clientX = event.clientX;
+      clientY = event.clientY;
+    }
+
+    draggedCard.x = clientX - draggedCard.startX;
+    draggedCard.y = clientY - draggedCard.startY;
 
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
     const distanceToCenter = Math.hypot(
-      event.clientX - centerX,
-      event.clientY - centerY
+      clientX - centerX,
+      clientY - centerY
     );
     
     vibrationIntensity = Math.max(0, Math.min(1, (1 - (distanceToCenter / 300))));
@@ -205,20 +289,36 @@
   function releaseCard(event) {
     if (!draggedCard.element || !browser) return;
 
-    // Calculate exact center position
+    // Get coordinates from either mouse or touch event
+    let clientX, clientY;
+    if (event.changedTouches) {
+      // Find the touch with matching ID
+      const touch = Array.from(event.changedTouches).find(t => t.identifier === touchId);
+      if (!touch) return;
+      clientX = touch.clientX;
+      clientY = touch.clientY;
+    } else {
+      clientX = event.clientX;
+      clientY = event.clientY;
+    }
+
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
     
-    let distanceToCenter = Math.hypot(
-      event.clientX - centerX,
-      event.clientY - centerY
+    const distanceToCenter = Math.hypot(
+      clientX - centerX,
+      clientY - centerY
     );
 
-    // Immediately remove mouse tracking
+    // Remove event listeners
     document.body.classList.remove('dragging');
     window.removeEventListener('mousemove', moveCard);
     window.removeEventListener('mouseup', releaseCard);
-    
+    window.removeEventListener('touchmove', moveCard);
+    window.removeEventListener('touchend', releaseCard);
+    window.removeEventListener('touchcancel', releaseCard);
+    touchId = null;
+
     if (distanceToCenter < 150 && draggedCard.card) {
       draggedCard.isReleased = true;
 
@@ -249,6 +349,9 @@
       document.body.classList.remove('dragging');
       window.removeEventListener('mousemove', moveCard);
       window.removeEventListener('mouseup', releaseCard);
+      window.removeEventListener('touchmove', moveCard);
+      window.removeEventListener('touchend', releaseCard);
+      window.removeEventListener('touchcancel', releaseCard);
       draggedCard = { element: null, rect: null, startX: 0, startY: 0, x: 0, y: 0 };
       overlayOpacity = 0;
       vibrationIntensity = 0;
@@ -295,15 +398,16 @@
 {/if}
 
 <div
-  class="fixed bottom-0 left-1/2 -translate-x-1/2 p-4 mb-[50px]"
+  class="fixed bottom-0 left-1/2 -translate-x-1/2 p-4 mb-[50px] deck-container"
   role="region"
   style="z-index: 20;"
-  on:mouseenter={() => isExpanded = true}
+  on:mouseenter={() => !isMobile && (isExpanded = true)}
   on:mouseleave={() => {
-    if (!draggedCard.element) {
+    if (!draggedCard.element && !isMobile) {
       isExpanded = false;
     }
   }}
+  on:click={handleTapToExpand}
 >
   <div class="relative w-[144px]">
     {#each cards.filter(card => card.visited) as card, i (card.id)}
@@ -311,7 +415,7 @@
       {@const isActive = draggedCard.card?.id === card.id}
       <div
         transition:fade={{ duration: 500 }}
-        class="absolute w-[144px] origin-bottom cursor-grab group"
+        class="absolute w-[144px] origin-bottom cursor-grab group touch-none"
         class:cursor-grabbing={isActive}
         class:isolate={isActive}
         role="button"
@@ -328,6 +432,7 @@
           transition: {isActive ? 'none' : 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)'};
         "
         on:mousedown={(e) => pickupCard(e, card)}
+        on:touchstart={(e) => pickupCard(e, card)}
         on:mouseenter={() => hoveredCard = card.id}
         on:mouseleave={() => hoveredCard = null}
       >
