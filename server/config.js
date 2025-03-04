@@ -1,4 +1,11 @@
 export const config = {
+  server: {
+    port: 3001,
+    ssl: process.env.USE_SSL === 'true' ? {
+      key: '/app/certs/private.key',
+      cert: '/app/certs/certificate.crt'
+    } : null
+  },
   mediasoup: {
     worker: {
       rtcMinPort: 2000,

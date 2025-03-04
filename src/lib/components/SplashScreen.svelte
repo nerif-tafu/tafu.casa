@@ -8,9 +8,9 @@
   let showingCard = true;
   
   const cardImages = {
-    '': '/LITTLEBITSPACE-9_DEATHS1.png',
-    'about': '/LITTLEBITSPACE-9_DEATHS2.png',
-    'projects': '/LITTLEBITSPACE-9_DEATHS3.png'
+    '': '/LITTLEBITSPACE-9_DEATHS4.png',
+    'about': '/LITTLEBITSPACE-9_DEATHS2-0.png',
+    'projects': '/LITTLEBITSPACE-9_DEATHS3-0.png'
   };
 
   $: currentPath = $page.url.pathname.slice(1);
@@ -36,7 +36,7 @@
       class="text-4xl mb-0 text-white/80 animate-fade-in"
       style="animation-delay: 250ms;"
     >
-      New summoning
+      Unlocked a new page...
     </div>
     <div 
       class="relative w-64 h-66 perspective-1000"

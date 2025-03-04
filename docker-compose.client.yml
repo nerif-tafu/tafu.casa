@@ -1,0 +1,14 @@
+services:
+  web:
+    build: .
+    container_name: tafu-web
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    command: npm run dev -- --host
+    stop_signal: SIGINT
+    stop_grace_period: 1s 

@@ -130,3 +130,6 @@ dist
 .pnp.*
 
 .svelte-kit
+
+certs/
+build/

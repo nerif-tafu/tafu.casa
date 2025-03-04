@@ -16,4 +16,9 @@ html {
   font-family: AlmendraDisplay, monospace;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
 } 

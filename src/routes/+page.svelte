@@ -1,5 +1,14 @@
 <script>
   import { fade } from 'svelte/transition';
+  import { goto } from '$app/navigation';
+
+  function navigateToProjects() {
+    goto('/projects');
+  }
+
+  function navigateToAbout() {
+    goto('/about');
+  }
 </script>
 
 <main class="container mx-auto px-4 py-16">
@@ -19,9 +28,11 @@
       </p>
       <p class="text-1xl text-white font-semibold">
         This site is a collection of <span class="hover-float">ideas</span> and 
-        <span class="hover-float">projects</span> that I've been/am working on.
+        <span class="hover-float cursor-pointer" on:click={navigateToProjects}>projects</span> that I've been/am working on.
         Don't expect polish or well thought out ideas, this is a place for me to turn the 
-        <span class="magical-text">ephemeral</span> into <span class="magical-text">permanent</span>.
+        <a href="/about" class="no-underline text-inherit">
+          <span class="magical-text">ephemeral</span> into <span class="magical-text">permanent</span>
+        </a>.
       </p>
     </section>
     

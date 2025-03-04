@@ -6,10 +6,13 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "docker:build": "docker-compose build",
-    "docker:up": "docker-compose up",
-    "docker:down": "docker-compose down",
-    "docker:dev": "docker-compose up --build"
+    "setup": "node scripts/setup-dev.js",
+    "prepare": "node -e \"try { require('./scripts/setup-dev.js') } catch(e) { console.log('Skipping cert setup in container') }\"",
+    "dev-client": "docker-compose -f docker-compose.client.yml up --build",
+    "dev-client-ssl": "docker-compose -f docker-compose.client-ssl.yml up --build",
+    "dev-server": "docker-compose -f docker-compose.server.yml up --build",
+    "dev-server-ssl": "docker-compose -f docker-compose.server-ssl.yml up --build",
+    "docker:down": "docker-compose down"
   },
   "type": "module",
   "dependencies": {

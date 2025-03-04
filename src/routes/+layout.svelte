@@ -11,11 +11,13 @@
   let fontsLoaded = false;
   const visitedCards = writable([]);
 
+  const isDev = import.meta.env.DEV;
+
   function initCards() {
     const initialCards = [
-      { id: '', image: '/LITTLEBITSPACE-9_DEATHS1.png', visited: false },
-      { id: 'about', image: '/LITTLEBITSPACE-9_DEATHS2.png', visited: false },
-      { id: 'projects', image: '/LITTLEBITSPACE-9_DEATHS3.png', visited: false },
+      { id: '', image: '/LITTLEBITSPACE-9_DEATHS4.png', visited: false },
+      { id: 'about', image: '/LITTLEBITSPACE-9_DEATHS2-0.png', visited: false },
+      { id: 'projects', image: '/LITTLEBITSPACE-9_DEATHS3-0.png', visited: false },
       { id: 'stream', image: '/LITTLEBITSPACE-9_DEATHS3.png', visited: false }
     ];
     
@@ -113,21 +115,23 @@
   <Loading />
 {/if}
 
-<!-- Debug Reset Button -->
-<button
-  class="fixed top-4 right-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/40 text-red-500 rounded"
-  on:click={resetCards}
->
-  Reset Cards
-</button>
+{#if isDev}
+  <!-- Debug Reset Button -->
+  <button
+    class="fixed top-4 right-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/40 text-red-500 rounded"
+    on:click={resetCards}
+  >
+    Reset Cards
+  </button>
 
-<!-- Reset current card -->
-<button
-  class="fixed top-16 right-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/40 text-red-500 rounded"
-  on:click={resetCurrentCard}
->
-  Reset Current Card
-</button>
+  <!-- Reset current card -->
+  <button
+    class="fixed top-16 right-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/40 text-red-500 rounded"
+    on:click={resetCurrentCard}
+  >
+    Reset Current Card
+  </button>
+{/if}
 
 <slot />
 

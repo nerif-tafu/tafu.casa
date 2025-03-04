@@ -1,0 +1,10 @@
+services:
+  nginx:
+    build: 
+      context: ./nginx
+      dockerfile: Dockerfile.ssl
+    ports:
+      - "1935:1935"
+      - "8443:8080"  # Map to 8443 for SSL
+    volumes:
+      - ./nginx/certs:/etc/nginx/certs:ro  # Added :ro for read-only 
