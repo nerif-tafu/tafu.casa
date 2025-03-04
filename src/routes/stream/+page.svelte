@@ -212,7 +212,7 @@
     });
 
     socket.on('quality-change', (id, quality) => {
-      console.log(`Quality change request from ${id} to ${quality}`);
+      console.log(`Quality change request from ${id}:`, quality);
       const peerConnection = peerConnections.get(id);
       if (!peerConnection) return;
 
@@ -220,23 +220,21 @@
       if (!sender) return;
 
       // Apply new constraints to the video track
-      const settings = qualitySettings[quality];
       const videoTrack = localStream.getVideoTracks()[0];
       
       videoTrack.applyConstraints({
-        width: { ideal: settings.video.width },
-        height: { ideal: settings.video.height },
-        frameRate: { ideal: settings.video.frameRate }
+        width: { ideal: quality.width },
+        height: { ideal: quality.height },
+        frameRate: { ideal: 30 } // Keep framerate constant
       }).then(() => {
         // Update encoding parameters
         const params = sender.getParameters();
         if (!params.encodings) params.encodings = [{}];
-        params.encodings[0].maxBitrate = settings.video.bitrate;
-        params.encodings[0].maxFramerate = settings.video.frameRate;
+        params.encodings[0].maxBitrate = quality.bitrate;
         
         return sender.setParameters(params);
       }).then(() => {
-        console.log(`Quality updated for peer ${id} to ${quality}`);
+        console.log(`Quality updated for peer ${id} to ${quality.width}p`);
         socket.emit('quality-updated', id, quality);
       }).catch(error => {
         console.error('Error updating quality:', error);

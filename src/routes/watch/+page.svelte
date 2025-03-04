@@ -17,6 +17,63 @@
   let pendingOffer = false;
   let currentQuality = 'high';  // Replace currentBitrate
 
+  // Quality tier calculations
+  let sourceDimensions = { width: 0, height: 0 };
+  
+  // Calculate available quality tiers based on source resolution
+  $: qualityTiers = calculateQualityTiers(sourceDimensions);
+  
+  function calculateQualityTiers(source) {
+    if (!source.width || !source.height) return [];
+    
+    const standardTiers = [
+      { width: 1920, height: 1080, label: '1080p', bitrate: 2500000 },
+      { width: 1280, height: 720, label: '720p', bitrate: 1500000 },
+      { width: 854, height: 480, label: '480p', bitrate: 800000 },
+      { width: 640, height: 360, label: '360p', bitrate: 500000 },
+      { width: 426, height: 240, label: '240p', bitrate: 300000 },
+      { width: 256, height: 144, label: '144p', bitrate: 150000 }
+    ];
+
+    const tiers = [];
+    const sourceWidth = Math.max(source.width, 256); // Ensure minimum width
+    const sourceHeight = Math.max(source.height, 144); // Ensure minimum height
+
+    console.log('Calculating tiers for source:', { width: sourceWidth, height: sourceHeight });
+
+    // Add source quality if it doesn't match a standard tier
+    const matchesStandardTier = standardTiers.some(tier => tier.width === sourceWidth);
+    if (!matchesStandardTier) {
+      tiers.push({
+        id: 'source',
+        label: `${sourceWidth}p`,
+        width: sourceWidth,
+        height: sourceHeight,
+        bitrate: Math.min(2500000, sourceWidth * sourceHeight * 0.2)
+      });
+    }
+
+    // Add all standard tiers that are at or below source resolution
+    standardTiers.forEach(tier => {
+      if (tier.width <= sourceWidth) {
+        tiers.push({
+          id: `tier_${tier.label}`,
+          label: tier.label,
+          width: tier.width,
+          height: tier.height,
+          bitrate: tier.bitrate
+        });
+      }
+    });
+
+    console.log('Available quality tiers:', tiers.map(t => ({ 
+      label: t.label, 
+      resolution: `${t.width}x${t.height}` 
+    })));
+    
+    return tiers;
+  }
+
   const bitrateSettings = {
     high: 2500000,
     medium: 1000000,
@@ -94,8 +151,8 @@
       cleanupConnection();
     });
 
-    socket.on('offer', (id, description) => {
-      console.log('Received offer from broadcaster');
+    socket.on('offer', (id, description, sourceInfo) => {
+      console.log('Received offer from broadcaster with source info:', sourceInfo);
       
       if (pendingOffer) {
         console.log('Ignoring offer - another offer is being processed');
@@ -108,6 +165,22 @@
         if (!peerConnection || peerConnection.connectionState !== 'connected') {
           console.log('Cleaning up old connection');
           cleanupConnection();
+        }
+
+        // Update source dimensions from broadcaster info
+        if (sourceInfo) {
+          console.log('Setting source dimensions from broadcaster:', sourceInfo);
+          sourceDimensions = {
+            width: sourceInfo.width,
+            height: sourceInfo.height
+          };
+          
+          // Set initial quality to highest available tier
+          const initialTier = calculateQualityTiers(sourceDimensions)[0];
+          if (initialTier) {
+            console.log('Setting initial quality tier:', initialTier);
+            currentQuality = initialTier.id;
+          }
         }
 
         if (!peerConnection) {
@@ -178,15 +251,7 @@
             console.log(`Added ${event.track.kind} track to stream`);
             
             if (event.track.kind === 'video') {
-              // Monitor video track state
-              const monitorVideoTrack = () => {
-                if (event.track.muted || !event.track.enabled) {
-                  console.log('Video track disabled, attempting to recover');
-                  peerConnection.restartIce();
-                }
-              };
-              setInterval(monitorVideoTrack, 2000);
-
+              // Don't update source dimensions here anymore
               tryAutoplay();
             }
 
@@ -256,19 +321,28 @@
     });
 
     socket.on('quality-updated', (quality) => {
-      console.log(`Quality updated to ${quality}`);
-      currentQuality = quality;
+      console.log(`Quality updated to:`, quality);
+      // Find the matching tier
+      const matchingTier = qualityTiers.find(tier => 
+        tier.width === quality.width && tier.height === quality.height
+      );
+      if (matchingTier) {
+        currentQuality = matchingTier.id;
+      }
     });
   };
 
-  const setQuality = (quality) => {
+  const setQuality = (tier) => {
     if (!peerConnection || !socket) return;
     
-    console.log(`Requesting quality change to ${quality}`);
-    socket.emit('quality-change', quality);
+    console.log(`Requesting quality change to ${tier.label}:`, tier);
+    socket.emit('quality-change', {
+      width: tier.width,
+      height: tier.height,
+      bitrate: tier.bitrate
+    });
     
-    // Update UI immediately but wait for confirmation
-    currentQuality = quality;
+    currentQuality = tier.id;
   };
 
   const toggleFullscreen = (element) => {
@@ -355,6 +429,11 @@
       reconnectMessage = 'Waiting for stream to start...';
     }
   }
+
+  // Add reactive logging for quality tiers
+  $: {
+    console.log('Current quality tiers:', qualityTiers);
+  }
 </script>
 
 <main class="container mx-auto px-4 py-16">
@@ -399,14 +478,34 @@
 
               <!-- Quality buttons -->
               <div class="flex gap-2">
-                {#each Object.entries(qualitySettings) as [quality, settings]}
+                {#if qualityTiers.length > 0}
+                  {#each qualityTiers as tier}
+                    <button
+                      class="px-3 py-1 text-sm rounded transition-colors duration-200 {
+                        currentQuality === tier.id
+                          ? 'bg-blue-500/80 text-white font-medium'
+                          : 'bg-white/10 hover:bg-white/20 text-white/90'
+                      }"
+                      on:click={() => setQuality(tier)}
+                    >
+                      <div class="flex items-center gap-1">
+                        {tier.label}
+                        {#if currentQuality === tier.id}
+                          <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/>
+                          </svg>
+                        {/if}
+                      </div>
+                    </button>
+                  {/each}
+                {:else}
                   <button
-                    class="px-3 py-1 text-sm bg-white/10 hover:bg-white/20 rounded text-white {currentQuality === quality ? 'bg-white/30' : ''}"
-                    on:click={() => setQuality(quality)}
+                    class="px-3 py-1 text-sm bg-white/10 text-white/50 cursor-not-allowed"
+                    disabled
                   >
-                    {settings.label}
+                    Auto
                   </button>
-                {/each}
+                {/if}
               </div>
             </div>
 

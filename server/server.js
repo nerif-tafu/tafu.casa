@@ -61,9 +61,9 @@ io.on('connection', socket => {
     }
   });
 
-  socket.on('offer', (id, message) => {
+  socket.on('offer', (id, description, sourceInfo) => {
     console.log('Relaying offer from', socket.id, 'to', id);
-    socket.to(id).emit('offer', socket.id, message);
+    socket.to(id).emit('offer', socket.id, description, sourceInfo);
   });
 
   socket.on('answer', (id, message) => {
