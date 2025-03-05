@@ -10,7 +10,7 @@ jobs:
   build-and-deploy:
     runs-on: ${{ github.ref == 'refs/heads/main' && 'self-hosted' || 'self-hosted-internal' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout
 
       - name: Set up environment variables
         run: |

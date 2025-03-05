@@ -1,0 +1,10 @@
+name: 'Checkout'
+description: 'Checkout repository'
+
+runs:
+  using: "composite"
+  steps:
+    - run: |
+        git clean -ffdx
+        git reset --hard HEAD
+      shell: bash 
