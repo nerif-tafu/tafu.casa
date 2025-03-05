@@ -12,6 +12,7 @@ jobs:
     steps:
       - name: Initial checkout
         run: |
+          rm -rf * .[^.]*  # Remove all files including hidden ones
           git clone https://github.com/${{ github.repository }} .
           git checkout ${{ github.sha }}
 
