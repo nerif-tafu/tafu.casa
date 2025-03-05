@@ -1,13 +1,20 @@
 <script>
   import { fade } from 'svelte/transition';
   import { goto } from '$app/navigation';
+  import { handleNavigation } from '$lib/stores/navigation';
+  import Link from '$lib/components/Link.svelte';
 
   function navigateToProjects() {
-    goto('/projects');
+    // Try card animation first, fallback to normal navigation
+    if (!handleNavigation('projects')) {
+      goto('/projects');
+    }
   }
 
   function navigateToAbout() {
-    goto('/about');
+    if (!handleNavigation('about')) {
+      goto('/about');
+    }
   }
 </script>
 
@@ -27,12 +34,14 @@
         <span class="hover-shimmer">cards</span> you can <span class="hover-pulse">summon</span>.
       </p>
       <p class="text-1xl text-white font-semibold">
-        This site is a collection of <span class="hover-float">ideas</span> and 
-        <span class="hover-float cursor-pointer" on:click={navigateToProjects}>projects</span> that I've been/am working on.
+        This site is a collection of ideas
+        <Link to="projects" hidden>
+          <span class="magical-text">projects</span>
+        </Link> that I've been/am working on.
         Don't expect polish or well thought out ideas, this is a place for me to turn the 
-        <a href="/about" class="no-underline text-inherit">
+        <Link to="about">
           <span class="magical-text">ephemeral</span> into <span class="magical-text">permanent</span>
-        </a>.
+        </Link>.
       </p>
     </section>
     

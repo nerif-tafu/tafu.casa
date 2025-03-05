@@ -2,20 +2,14 @@
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import { page } from '$app/stores';
+  import { cardConfig } from '$lib/config/cards';
   
   export let onComplete = () => {};
   let showSplash = true;
   let showingCard = true;
   
-  const cardImages = {
-    '': '/LITTLEBITSPACE-9_DEATHS-BLACK.png',
-    'about': '/LITTLEBITSPACE-9_DEATHS-GREEN.png',
-    'projects': '/LITTLEBITSPACE-9_DEATHS-BLUE.png',
-    'stream': '/LITTLEBITSPACE-9_DEATHS-ORANGE.png',
-  };
-
   $: currentPath = $page.url.pathname.slice(1);
-  $: currentImage = cardImages[currentPath] || cardImages[''];
+  $: currentImage = cardConfig[currentPath]?.image || cardConfig[''].image;
   
   onMount(() => {
     setTimeout(() => {
@@ -46,7 +40,7 @@
       <div class="w-full h-full transform-style-3d animate-fold">
         <img 
           src={currentImage}
-          alt="Card Image"
+          alt={currentPath}
           class="w-full h-full object-contain"
         />
       </div>

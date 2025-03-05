@@ -6,24 +6,23 @@
   import CardDeck from "$lib/components/CardDeck.svelte";
   import { navigating, page } from '$app/stores';
   import { onMount } from 'svelte';
-  import { writable } from 'svelte/store';
-  import { navigationState } from '$lib/stores/navigation';
+  import { navigationState, visitedCards } from '$lib/stores/navigation';
   import { afterNavigate } from '$app/navigation';
+  import { getInitialCards, cardConfig } from '$lib/config/cards';
+  import { initializeCards, markPageAsVisited } from '$lib/stores/navigation';
 
+  let isChecking = true;
   let showingSplash = false;
+  let shouldShowContent = false;
   let fontsLoaded = false;
-  const visitedCards = writable([]);
 
   const isDev = import.meta.env.DEV;
 
+  // Track if we're handling a navigation
+  let isHandlingNavigation = false;
+
   function initCards() {
-    const initialCards = [
-      { id: '', image: '/LITTLEBITSPACE-9_DEATHS-BLACK.png', visited: false },
-      { id: 'about', image: '/LITTLEBITSPACE-9_DEATHS-GREEN.png', visited: false },
-      { id: 'projects', image: '/LITTLEBITSPACE-9_DEATHS-BLUE.png', visited: false },
-      { id: 'stream', image: '/LITTLEBITSPACE-9_DEATHS-ORANGE.png', visited: false }
-    ];
-    
+    const initialCards = getInitialCards();
     visitedCards.set(initialCards);
     localStorage.setItem('visitedCards', JSON.stringify(initialCards));
     console.log('Initialized cards:', initialCards);
@@ -59,57 +58,100 @@
 
   // Handle route changes
   function handleRoute(path) {
-    const currentPath = path.slice(1);
-    console.log('Current path:', currentPath);
+    if (isHandlingNavigation) return; // Skip if already handling navigation
     
-    visitedCards.update(cards => {
-      const card = cards.find(c => c.id === currentPath);
-      if (card && !card.visited) {
-        showingSplash = true;
+    const currentPath = path.slice(1);
+    
+    // Check if this is a valid route
+    if (cardConfig[currentPath]) {
+      // Check localStorage first
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('visitedCards');
+        if (stored) {
+          const storedCards = JSON.parse(stored);
+          const storedCard = storedCards.find(c => c.id === currentPath);
+          if (storedCard?.visited) {
+            shouldShowContent = true;
+            visitedCards.update(cards => 
+              cards.map(c => ({
+                ...c,
+                visited: c.id === currentPath ? true : c.visited
+              }))
+            );
+            isChecking = false;
+            return;
+          }
+        }
       }
 
-      const updatedCards = cards.map(card => {
-        if (card.id === currentPath) {
-          console.log('Marking as visited:', card.id);
-          return { ...card, visited: true };
+      visitedCards.update(cards => {
+        const card = cards.find(c => c.id === currentPath);
+        if (card && !card.visited) {
+          showingSplash = true;
+          shouldShowContent = false;
+          return cards;
+        } else if (!card) {
+          // Handle direct navigation to valid route
+          const newCards = [...cards];
+          const cardData = cardConfig[currentPath];
+          newCards.push({
+            id: currentPath,
+            image: cardData.image,
+            visited: false
+          });
+          showingSplash = true;
+          shouldShowContent = false;
+          return newCards;
+        } else {
+          shouldShowContent = true;
+          return cards.map(c => {
+            if (c.id === currentPath) {
+              return { ...c, visited: true };
+            }
+            return c;
+          });
         }
-        return card;
       });
-      
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('visitedCards', JSON.stringify(updatedCards));
-        console.log('Saved updated cards to localStorage:', updatedCards);
-      }
-      
-      return updatedCards;
-    });
+    } else {
+      shouldShowContent = true;
+    }
+    isChecking = false;
+  }
+
+  // Update the splash screen completion handler
+  function handleSplashComplete() {
+    const currentPath = $page.url.pathname.slice(1);
+    markPageAsVisited(currentPath);
+    showingSplash = false;
+    shouldShowContent = true;
   }
 
   onMount(() => {
-    document.fonts.ready.then(() => {
-      fontsLoaded = true;
-    });
+    // Initialize cards on mount
+    initializeCards();
     
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('visitedCards');
-      if (stored) {
-        console.log('Stored cards found!');
-        const parsedCards = JSON.parse(stored);
-        visitedCards.set(parsedCards);
-        console.log('Loaded from localStorage:', parsedCards);
-      } else {
-        initCards();
-      }
-    }
-
     // Handle initial route
     handleRoute($page.url.pathname);
   });
 
-  // Handle route changes
-  $: if ($page) {
-    // handleRoute($page.url.pathname);
-  }
+  // Update afterNavigate handler
+  afterNavigate((navigation) => {
+    const currentPath = $page.url.pathname.slice(1);
+    
+    // Show splash only for unvisited pages with showSplash state
+    if (navigation?.from?.state?.showSplash) {
+      const currentCards = get(visitedCards);
+      const card = currentCards.find(c => c.id === currentPath);
+      if (card && !card.visited) {
+        showingSplash = true;
+        shouldShowContent = false;
+      } else {
+        shouldShowContent = true;
+      }
+    } else {
+      handleRoute($page.url.pathname);
+    }
+  });
 
   // Add a delay before resetting navigation state
   function resetNavigationWithDelay() {
@@ -120,23 +162,20 @@
       });
     }, 1000); // Delay to match the navigation animation
   }
-
-  // Update afterNavigate to use delayed reset
-  afterNavigate(() => {
-    resetNavigationWithDelay();
-  });
 </script>
 
-{#if showingSplash}
-  <SplashScreen onComplete={() => showingSplash = false} />
-{:else if $navigating || !fontsLoaded}
+{#if isChecking}
+  <div class="fixed inset-0 bg-black z-50"></div>
+{:else if showingSplash}
+  <SplashScreen onComplete={handleSplashComplete} />
+{:else if $navigating}
   <Loading />
-{:else}
+{:else if shouldShowContent}
   <div 
     in:fade={{ duration: 300, delay: 150 }}
     out:fade={{ duration: 150 }}
   >
-    {#if $navigationState.isNavigating}
+    {#if $navigationState.isNavigating && $navigationState.destination}
       <div 
         class="fixed w-full py-8 text-center navigation-bar"
         style="

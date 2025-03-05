@@ -5,58 +5,43 @@
   import { goto, afterNavigate } from '$app/navigation';
   import { browser } from '$app/environment';
   import { onDestroy, onMount } from 'svelte';
-  import { navigationState } from '$lib/stores/navigation';
+  import { 
+    navigationState, 
+    cardPosition,
+    handleNavigation,
+    activeCard 
+  } from '$lib/stores/navigation';
+  import { cardConfig } from '$lib/config/cards';
+  import { writable } from 'svelte/store';
 
   export let cards = [];
 
   // Simple state
   let isExpanded = false;
-  let activeCard = null;
   let hoveredCard = null;
 
-  // Track card being dragged
-  let draggedCard = {
+  // Make draggedCard a store and subscribe to it
+  const draggedCardStore = writable({
+    card: null,
+    isReleased: false,
     element: null,
     rect: null,
     startX: 0,
     startY: 0,
     x: 0,
-    y: 0,
-    isReleased: false
-  };
-
-  // Add card theme colors and navigation text
-  const cardColors = {
-    '': {
-      color: 'rgba(255, 255, 255, 0.8)',
-      text: 'Home',
-      navMessage: 'Returning to',
-      destination: 'The Void'
-    },
-    'about': {
-      color: 'rgba(0, 255, 100, 0.8)',
-      text: 'About Me',
-      navMessage: 'Learning about',
-      destination: 'The Developer'
-    },
-    'projects': {
-      color: 'rgba(0, 130, 255, 0.8)',
-      text: 'My Projects',
-      navMessage: 'Checking out',
-      destination: 'The Portfolio'
-    },
-    'stream': {
-      color: 'rgba(255, 130, 0, 0.8)',
-      text: 'Live Stream',
-      navMessage: 'Tuning into',
-      destination: 'The Stream'
-    }
-  };
+    y: 0
+  });
+  
+  // Subscribe to the store value
+  let draggedCard;
+  draggedCardStore.subscribe(value => {
+    draggedCard = value;
+  });
 
   // Add state for overlay opacity
   let overlayOpacity = 0;
 
-  // Add vibration intensity to script section
+  // Add vibration intensity
   let vibrationIntensity = 0;
 
   // Add touch event tracking
@@ -65,6 +50,17 @@
   // Add state to track if we're on mobile
   let isMobile = false;
   let lastTapTime = 0;
+
+  // Add subscription to navigationState
+  let isNavigating;
+  let isReleased;
+  navigationState.subscribe(state => {
+    isNavigating = state.isNavigating;
+    isReleased = state.isReleased;
+    if (isNavigating || isMobile) {
+      isExpanded = false; // Force collapse when navigation starts or on mobile
+    }
+  });
 
   // Check if we're on mobile when the component mounts
   onMount(() => {
@@ -87,7 +83,7 @@
     
     // Check if click was inside the deck container
     const deckContainer = document.querySelector('.deck-container');
-    if (deckContainer && !deckContainer.contains(event.target)) {
+    if (!deckContainer?.contains(event.target)) {
       isExpanded = false;
     }
   }
@@ -177,36 +173,17 @@
       return (angle);
     }
 
-  // Animation for dragged card
-  const cardPosition = tweened(
-    { x: 0, y: 0 },
-    { duration: 500, easing: cubicOut }
-  );
-
   // Handle tap/click to expand
-  function handleTapToExpand(event) {
-    if (!isMobile) return;
-    
-    event.preventDefault();
-    const currentTime = Date.now();
-    
-    // Prevent double-tap zoom on mobile
-    if (currentTime - lastTapTime < 300) {
-      event.preventDefault();
-      return;
-    }
-    
-    lastTapTime = currentTime;
-    
-    if (!isExpanded) {
-      isExpanded = true;
-      return;
+  function handleTapToExpand(e) {
+    if (draggedCard.element || isNavigating) return;
+    if (isMobile) {
+      isExpanded = !isExpanded;
     }
   }
 
   // Handle card pickup
   function pickupCard(event, card) {
-    if (!browser) return;
+    if (!browser || isNavigating) return;
     if (isMobile && !isExpanded) return;
     
     event.preventDefault();
@@ -223,7 +200,7 @@
     }
 
     // Store initial state
-    draggedCard = {
+    draggedCardStore.set({
       element,
       rect,
       card,
@@ -232,19 +209,25 @@
       x: 0,
       y: 0,
       isReleased: false
-    };
+    });
 
     setTimeout(() => {
       rect = element.getBoundingClientRect();
       let currentXDif = (rect.left + (rect.width / 2)) - clientX;
       let currentYDif = (rect.top + (rect.height / 2)) - clientY;
 
-      draggedCard.startX = clientX + currentXDif;
-      draggedCard.startY = clientY + currentYDif;
+      draggedCardStore.update(current => ({
+        ...current,
+        startX: clientX + currentXDif,
+        startY: clientY + currentYDif
+      }));
 
       // Calculate new position
-      draggedCard.x = clientX - draggedCard.startX;
-      draggedCard.y = clientY - draggedCard.startY;
+      draggedCardStore.update(current => ({
+        ...current,
+        x: clientX - current.startX,
+        y: clientY - current.startY
+      }));
 
       // Update position
       cardPosition.set({ x: draggedCard.x, y: draggedCard.y });
@@ -267,7 +250,7 @@
 
   // Handle card movement
   function moveCard(event) {
-    if (!draggedCard.element) return;
+    if (!draggedCard.element || isNavigating) return;
     event.preventDefault();
 
     // Get coordinates from either mouse or touch event
@@ -283,8 +266,11 @@
       clientY = event.clientY;
     }
 
-    draggedCard.x = clientX - draggedCard.startX;
-    draggedCard.y = clientY - draggedCard.startY;
+    draggedCardStore.update(current => ({
+      ...current,
+      x: clientX - current.startX,
+      y: clientY - current.startY
+    }));
 
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
@@ -303,17 +289,43 @@
   afterNavigate(() => {
     cardPosition.set({ x: 0, y: 0 }, { hard: true });
     isExpanded = false;  // Reset expanded state
-    cleanupDrag(false);
+    if (isMobile) {
+      // Force a slight delay on mobile to ensure state is reset
+      setTimeout(() => {
+        isExpanded = false;
+      }, 100);
+    }
+    draggedCardStore.set({
+      card: null,
+      isReleased: false,
+      element: null,
+      rect: null,
+      startX: 0,
+      startY: 0,
+      x: 0,
+      y: 0
+    });
   });
 
-  // Handle card release
+  // Update navigateWithAnimation to use the store's handleNavigation
+  function navigateWithAnimation(cardId) {
+    const card = cards.find(c => c.id === cardId);
+    if (!card?.visited) return false;
+
+    draggedCardStore.update(current => ({
+      ...current,
+      isReleased: true
+    }));
+    return handleNavigation(cardId, true);
+  }
+
+  // Update release function to use new navigation function
   function releaseCard(event) {
     if (!draggedCard.element || !browser) return;
 
     // Get coordinates from either mouse or touch event
     let clientX, clientY;
     if (event.changedTouches) {
-      // Find the touch with matching ID
       const touch = Array.from(event.changedTouches).find(t => t.identifier === touchId);
       if (!touch) return;
       clientX = touch.clientX;
@@ -325,13 +337,28 @@
 
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
-    
     const distanceToCenter = Math.hypot(
       clientX - centerX,
       clientY - centerY
     );
 
-    // Remove event listeners
+    // Remove event listeners immediately to prevent further movement
+    cleanupEventListeners();
+    
+    setTimeout(() => {
+      if (distanceToCenter < 150 && draggedCard.card) {
+        // Lock the card position before starting navigation
+        navigateWithAnimation(draggedCard.card.id);
+        cleanupDrag(true);
+      } else {
+        cardPosition.set({ x: 0, y: 0 });
+        cleanupDrag(false);
+      }
+    }, 200);
+  }
+
+  // Separate event listener cleanup
+  function cleanupEventListeners() {
     document.body.classList.remove('dragging');
     window.removeEventListener('mousemove', moveCard);
     window.removeEventListener('mouseup', releaseCard);
@@ -339,50 +366,24 @@
     window.removeEventListener('touchend', releaseCard);
     window.removeEventListener('touchcancel', releaseCard);
     touchId = null;
-
-    if (distanceToCenter < 150 && draggedCard.card) {
-      draggedCard.isReleased = true;
-      navigationState.set({
-        isNavigating: true,
-        destination: cardColors[draggedCard.card.id].destination,
-        message: cardColors[draggedCard.card.id].navMessage
-      });
-
-      setTimeout(() => {        
-        cardPosition.set({ 
-          x: 0,
-          y: -360
-        }, { 
-          duration: 1300,
-          easing: cubicOut
-        }).then(() => {
-          goto('/' + draggedCard.card.id).then(() => {
-            // Reset navigation state after navigation
-            navigationState.set({
-              isNavigating: false,
-              destination: null
-            });
-          });
-        });
-        cleanupDrag(true);
-      }, 100);
-    } else {
-      cardPosition.set({ x: 0, y: 0 });
-      cleanupDrag(false);
-    }
   }
 
+  // Update cleanupDrag to use new cleanup function
   function cleanupDrag(willNavigate = false) {
     if (!browser) return;
     
     if (!willNavigate) {
-      document.body.classList.remove('dragging');
-      window.removeEventListener('mousemove', moveCard);
-      window.removeEventListener('mouseup', releaseCard);
-      window.removeEventListener('touchmove', moveCard);
-      window.removeEventListener('touchend', releaseCard);
-      window.removeEventListener('touchcancel', releaseCard);
-      draggedCard = { element: null, rect: null, startX: 0, startY: 0, x: 0, y: 0 };
+      cleanupEventListeners();
+      draggedCardStore.set({
+        card: null,
+        isReleased: false,
+        element: null,
+        rect: null,
+        startX: 0,
+        startY: 0,
+        x: 0,
+        y: 0
+      });
       overlayOpacity = 0;
       vibrationIntensity = 0;
     }
@@ -393,11 +394,43 @@
       cleanupDrag();
     }
   });
+
+  // Watch for active card and navigation state changes
+  $: if ($activeCard) {
+    draggedCardStore.set({
+      card: $activeCard,
+      isReleased: false
+    });
+    // Set overlay values for link clicks
+    overlayOpacity = 0.8;
+    vibrationIntensity = 1;
+  }
+
+  $: if (isReleased) {
+    draggedCardStore.update(current => ({
+      ...current,
+      isReleased: true
+    }));
+  }
+
+  // Add cleanup when navigation ends
+  $: if (!isNavigating) {
+    overlayOpacity = 0;
+    vibrationIntensity = 0;
+  }
+
+  // Update hover handler
+  function handleHover(cardId) {
+    if (!isNavigating && !draggedCard.element) {
+      hoveredCard = cardId;
+    }
+  }
 </script>
 
 <!-- Update the overlay -->
-{#if draggedCard.element}
+{#if draggedCard.element || (isNavigating && draggedCard.isReleased)}
   <div 
+    transition:fade={{ duration: 300 }}
     class="fixed inset-0 pointer-events-none transition-all duration-200"
     style="
       background: 
@@ -424,20 +457,28 @@
         );
       z-index: 500;
     "
-  />
+  ></div>
 {/if}
 
-<div
-  class="fixed bottom-0 left-1/2 -translate-x-1/2 p-4 mb-[50px] deck-container"
-  role="region"
-  style="z-index: 20;"
-  on:mouseenter={() => !isMobile && (isExpanded = true)}
+<button
+  type="button"
+  class="fixed bottom-0 left-1/2 -translate-x-1/2 p-4 mb-[50px] deck-container bg-transparent border-0"
+  class:pointer-events-none={isNavigating || draggedCard.element}
+  aria-label="Card deck"
+  style="z-index: 20; outline: none;"
+  on:mouseenter={() => !isMobile && !isNavigating && !draggedCard.element && (isExpanded = true)}
   on:mouseleave={() => {
-    if (!draggedCard.element && !isMobile) {
+    if (!draggedCard.element && !isMobile && !isNavigating) {
       isExpanded = false;
     }
   }}
   on:click={handleTapToExpand}
+  on:keydown={(e) => {
+    if (!isNavigating && !draggedCard.element && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      handleTapToExpand(e);
+    }
+  }}
 >
   <div class="relative w-[144px]">
     {#each cards.filter(card => card.visited) as card, i (card.id)}
@@ -456,28 +497,29 @@
           transform: 
             translate(
               {isActive ? $cardPosition.x : 0}px,
-              calc({isExpanded ? -60 : 0}% + {isActive ? $cardPosition.y : 0}px)
+              calc({(isExpanded && !isNavigating) || (isActive && draggedCard.isReleased) ? -60 : 0}% + {isActive ? $cardPosition.y : 0}px)
             )
             rotate({isActive ? 0 : isExpanded ? (i - (total - 1) / 2) * 15 : 0}deg);
           transition: {isActive ? 'none' : 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)'};
+          pointer-events: {isNavigating ? 'none' : 'auto'};
         "
         on:mousedown={(e) => pickupCard(e, card)}
         on:touchstart={(e) => pickupCard(e, card)}
-        on:mouseenter={() => hoveredCard = card.id}
-        on:mouseleave={() => hoveredCard = null}
+        on:mouseenter={() => handleHover(card.id)}
+        on:mouseleave={() => handleHover(null)}
       >
-        <img
-          src={card.image}
-          alt={card.id}
+          <img
+            src={card.image}
+            alt={card.id}
           class="w-full h-auto rounded shadow-lg transition-all duration-200"
-          class:brightness-75={!isActive}
-          class:hover:brightness-100={isExpanded}
-          class:hover:-translate-y-4={isExpanded}
+          class:brightness-75={!isActive && !isNavigating && (!isMobile || (isMobile && !isExpanded))}
+          class:hover:brightness-100={isExpanded && !isNavigating}
+          class:hover:-translate-y-4={isExpanded && !isNavigating}
           class:magical-glow={isActive && draggedCard.isReleased}
           class:vibrating={isActive && !draggedCard.isReleased}
           class:vibrating-release={isActive && draggedCard.isReleased}
           style="
-            --card-color: {cardColors[card.id].color};
+            --card-color: {cardConfig[card.id].color};
             --vib-x: {isActive ? vibrationIntensity * 2 : 0}px;
             --vib-y: {isActive ? vibrationIntensity * 2 : 0}px;
             --vib-rot: {isActive ? vibrationIntensity * 2 : 0}deg;
@@ -487,7 +529,7 @@
       </div>
     {/each}
   </div>
-</div>
+</button>
 
 <style>
   :global(body.dragging) {
@@ -584,30 +626,5 @@
 
   .vibrating-release {
     animation: vibrate-release 1.3s ease-out forwards;
-  }
-
-  .navigation-bar {
-    position: relative;
-    background: rgba(0, 0, 0, 0.9);
-  }
-
-  .navigation-bar::before,
-  .navigation-bar::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    height: 40px;
-    pointer-events: none;
-  }
-
-  .navigation-bar::before {
-    top: -40px;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
-  }
-
-  .navigation-bar::after {
-    bottom: -40px;
-    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
   }
 </style> 
