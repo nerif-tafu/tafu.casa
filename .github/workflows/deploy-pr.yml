@@ -1,0 +1,81 @@
+name: Deploy PR Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, internal]
+    steps:
+      - name: Checkout code
+        if: github.event.action != 'closed'
+        run: |
+          rm -rf * .[^.]*
+          git init
+          git remote add origin https://github.com/${{ github.repository }}
+          git fetch origin ${{ github.sha }}
+          git checkout ${{ github.sha }}
+
+      - uses: ./.github/actions/checkout
+        if: github.event.action != 'closed'
+
+      - name: Set up environment variables
+        if: github.event.action != 'closed'
+        run: |
+          echo "DEPLOY_ENV=pr" >> $GITHUB_ENV
+          echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          echo "DOMAIN=pr-${{ github.event.pull_request.number }}.demo.tafu.casa" >> $GITHUB_ENV
+
+      - name: Build images
+        if: github.event.action != 'closed'
+        run: |
+          docker build \
+            --build-arg DOMAIN=$DOMAIN \
+            -t tafu-web:pr-${PR_NUMBER} \
+            -f Dockerfile .
+          docker build \
+            --build-arg DOMAIN=$DOMAIN \
+            -t tafu-webrtc:pr-${PR_NUMBER} \
+            -f server/Dockerfile .
+          docker build \
+            --build-arg DOMAIN=$DOMAIN \
+            -t tafu-nginx:pr-${PR_NUMBER} \
+            -f docker/nginx/Dockerfile.ssl \
+            docker/nginx
+
+      - name: Deploy PR Preview
+        if: github.event.action != 'closed'
+        run: |
+          # Ensure nginx-proxy is running and healthy
+          docker network create nginx-proxy || true
+          if ! docker ps -q -f name=nginx-master; then
+            docker compose -f docker/prod/docker-compose.yml up -d nginx-proxy
+            sleep 5  # Give it time to start up
+          fi
+          
+          # Stop and remove only PR-specific containers
+          docker stop pr-${PR_NUMBER}-web pr-${PR_NUMBER}-webrtc pr-${PR_NUMBER}-nginx || true
+          docker rm pr-${PR_NUMBER}-web pr-${PR_NUMBER}-webrtc pr-${PR_NUMBER}-nginx || true
+          
+          # Deploy new containers
+          TAG=pr-${PR_NUMBER} docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.pr.yml up -d
+          
+          # Wait for containers to be healthy
+          echo "Waiting for containers to be ready..."
+          sleep 10
+
+      - name: Clean up PR Environment
+        if: github.event.action == 'closed'
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          # Stop and remove only the PR-specific containers
+          docker stop pr-${PR_NUMBER}-web pr-${PR_NUMBER}-webrtc pr-${PR_NUMBER}-nginx || true
+          docker rm pr-${PR_NUMBER}-web pr-${PR_NUMBER}-webrtc pr-${PR_NUMBER}-nginx || true
+          # Remove PR-specific images
+          docker rmi tafu-web:pr-${PR_NUMBER} || true
+          docker rmi tafu-webrtc:pr-${PR_NUMBER} || true
+          docker rmi tafu-nginx:pr-${PR_NUMBER} || true
+
+      - name: Clean up old images
+        run: docker image prune -f 

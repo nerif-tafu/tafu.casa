@@ -1,5 +1,41 @@
 services:
   web:
     image: tafu-web:staging
-    ports:
-      - "3443:3000" 
+    container_name: staging-web
+    environment:
+      - NODE_ENV=production
+      - VIRTUAL_HOST=staging.tafu.casa
+      - VIRTUAL_PORT=3000
+    expose:
+      - "3000"
+    networks:
+      - nginx-proxy
+
+  webrtc:
+    image: tafu-webrtc:staging
+    container_name: staging-webrtc
+    environment:
+      - NODE_ENV=production
+      - VIRTUAL_HOST=webrtc.staging.tafu.casa
+      - VIRTUAL_PORT=3001
+    expose:
+      - "3001"
+    networks:
+      - nginx-proxy
+
+  nginx:
+    image: tafu-nginx:staging
+    container_name: staging-nginx
+    environment:
+      - VIRTUAL_HOST=stream.staging.tafu.casa
+      - VIRTUAL_PORT=9000
+      - WEB_UPSTREAM=staging-web
+      - WEBRTC_UPSTREAM=staging-webrtc
+    expose:
+      - "9000"
+    networks:
+      - nginx-proxy
+
+networks:
+  nginx-proxy:
+    external: true 

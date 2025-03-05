@@ -24,7 +24,7 @@
     
     <section>
       <h1 class="text-6xl font-bold hover-glow">
-        <span class="magical-text">Hello</span> <span class="hover-shimmer">there</span><span class="hover-pulse">.</span>
+        <span class="magical-text">Test Hello</span> <span class="hover-shimmer">there</span><span class="hover-pulse">.</span>
       </h1>
     </section>
     
