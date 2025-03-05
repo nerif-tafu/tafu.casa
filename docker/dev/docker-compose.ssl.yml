@@ -3,7 +3,7 @@ services:
     ports:
       - "3443:3443"  # HTTPS port
     volumes:
-      - ./setup/certs:/app/certs
+      - ./setup/certs:/app/certs    # Additional SSL certs, doesn't affect hot reload
     environment:
       - USE_SSL=true
       - VITE_USE_SSL=true

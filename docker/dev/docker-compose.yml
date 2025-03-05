@@ -11,6 +11,8 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
     command: npm run dev -- --host
     stop_signal: SIGINT
     stop_grace_period: 1s
