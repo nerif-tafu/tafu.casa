@@ -48,7 +48,9 @@ jobs:
         if: github.event.action != 'closed'
         run: |
           docker network create nginx-proxy || true
-          TAG=pr-${PR_NUMBER} docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.pr.yml down
+          # Stop and remove only PR-specific containers
+          docker stop pr-${PR_NUMBER}-web pr-${PR_NUMBER}-webrtc pr-${PR_NUMBER}-nginx || true
+          docker rm pr-${PR_NUMBER}-web pr-${PR_NUMBER}-webrtc pr-${PR_NUMBER}-nginx || true
           TAG=pr-${PR_NUMBER} docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.pr.yml up -d
 
       - name: Clean up PR Environment

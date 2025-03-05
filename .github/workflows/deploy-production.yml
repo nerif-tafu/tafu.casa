@@ -42,7 +42,9 @@ jobs:
       - name: Deploy
         run: |
           docker network create nginx-proxy || true
-          TAG=prod docker compose -f docker/prod/docker-compose.yml down
+          # Stop and remove only production containers
+          docker stop prod-web-1 prod-webrtc-1 prod-nginx-1 || true
+          docker rm prod-web-1 prod-webrtc-1 prod-nginx-1 || true
           TAG=prod docker compose -f docker/prod/docker-compose.yml up -d
 
       - name: Clean up old images
