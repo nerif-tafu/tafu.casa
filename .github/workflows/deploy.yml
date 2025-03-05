@@ -10,6 +10,11 @@ jobs:
   build-and-deploy:
     runs-on: ${{ github.ref == 'refs/heads/main' && 'self-hosted' || 'self-hosted-internal' }}
     steps:
+      - name: Initial checkout
+        run: |
+          git clone https://github.com/${{ github.repository }} .
+          git checkout ${{ github.sha }}
+
       - uses: ./.github/actions/checkout
 
       - name: Set up environment variables
