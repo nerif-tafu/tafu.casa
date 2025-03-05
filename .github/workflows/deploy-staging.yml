@@ -21,7 +21,7 @@ jobs:
       - name: Set up environment variables
         run: |
           echo "DEPLOY_ENV=staging" >> $GITHUB_ENV
-          echo "DOMAIN=app.staging.tafu.casa" >> $GITHUB_ENV
+          echo "DOMAIN=staging.tafu.casa" >> $GITHUB_ENV
 
       - name: Build images
         run: |
