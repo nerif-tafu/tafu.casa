@@ -55,7 +55,10 @@ jobs:
         if: github.event.action == 'closed'
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
-          docker compose -f docker/prod/docker-compose.pr.yml down
+          # Stop and remove only the PR-specific containers
+          docker stop pr-${PR_NUMBER}-web pr-${PR_NUMBER}-webrtc pr-${PR_NUMBER}-nginx || true
+          docker rm pr-${PR_NUMBER}-web pr-${PR_NUMBER}-webrtc pr-${PR_NUMBER}-nginx || true
+          # Remove PR-specific images
           docker rmi tafu-web:pr-${PR_NUMBER} || true
           docker rmi tafu-webrtc:pr-${PR_NUMBER} || true
           docker rmi tafu-nginx:pr-${PR_NUMBER} || true
