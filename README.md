@@ -1,6 +1,48 @@
 # tafu.casa
 A homepage for tafu.casa.
 
+## Architecture
+
+- Frontend: SvelteKit
+- Backend: Node.js
+- Media Server: Nginx-RTMP
+- Containers: Docker
+- CI/CD: GitHub Actions
+
+## Deployment Architecture
+
+The application uses a multi-environment setup with reverse proxy routing:
+
+### Production Environment (External Runner)
+- Main site: tafu.casa
+- WebRTC: webrtc.tafu.casa
+- Stream: stream.tafu.casa
+
+### Staging Environment (Internal Runner)
+- Main site: staging.tafu.casa
+- WebRTC: webrtc.staging.tafu.casa
+- Stream: stream.staging.tafu.casa
+
+### PR Preview Environments (Internal Runner)
+- Main site: pr-{number}.demo.tafu.casa
+- WebRTC: webrtc-pr-{number}.demo.tafu.casa
+- Stream: stream-pr-{number}.demo.tafu.casa
+
+### Routing Architecture
+```
+External → nginx-internal (192.168.3.96:443)
+  → nginx-master (192.168.3.212:8080) 
+    → environment nginx (172.18.x.x:9000)
+      → web/webrtc services
+```
+
+### Container Naming Convention
+- Production: prod-{service}-1
+- Staging: staging-{service}
+- PR Preview: pr-{number}-{service}
+
+Where {service} is one of: web, webrtc, nginx
+
 ## Development Setup
 
 1. Install dependencies:
@@ -36,43 +78,29 @@ The app will be available at:
    - Main runner (production):
      - Name: self-hosted
      - Labels: self-hosted
+     - Location: External network
    - Internal runner (staging/PR previews):
      - Name: self-hosted-internal
      - Labels: self-hosted-internal
+     - Location: Internal network
 
-2. Create systemd service for each runner:
-
-[Unit]
-Description=GitHub Actions Runner
-After=network.target
-
-[Service]
-ExecStart=/opt/actions-runner/run.sh
-User=github-runner
-WorkingDirectory=/opt/actions-runner
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-
-3. Enable and start the services:
-   sudo systemctl enable github-runner
-   sudo systemctl start github-runner
+2. Configure and run the runners:
+   - Download and extract the runner package
+   - Run `config.sh` to configure the runner
+   - Run `svc.sh install` to install as a service
+   - Run `svc.sh start` to start the runner
 
 ## Deployment
 
 The app deploys automatically via GitHub Actions:
 - Push to main: Deploys to production (tafu.casa)
-- Push to staging: Deploys to staging (app.staging.tafu.casa)
+- Push to staging: Deploys to staging (staging.tafu.casa)
 - Pull requests: Creates preview deployment (pr-{number}.demo.tafu.casa)
 
-## Architecture
-
-- Frontend: SvelteKit
-- Backend: Node.js
-- Media Server: Nginx-RTMP
-- Containers: Docker
-- CI/CD: GitHub Actions
+Each environment is isolated:
+- Production runs on external runner
+- Staging and PR previews share internal runner but don't interfere
+- nginx-master handles routing for all environments
 
 # WebRTC Streaming App
 
