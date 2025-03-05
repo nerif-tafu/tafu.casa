@@ -10,6 +10,14 @@ jobs:
   build-and-deploy:
     runs-on: ${{ (github.event_name == 'pull_request' || github.ref == 'refs/heads/staging') && 'self-hosted-internal' || 'self-hosted' }}
     steps:
+      - name: Debug runner selection
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "GitHub ref: ${{ github.ref }}"
+          echo "Base ref: ${{ github.base_ref }}"
+          echo "Head ref: ${{ github.head_ref }}"
+          echo "Runner: ${{ (github.event_name == 'pull_request' || github.ref == 'refs/heads/staging') && 'self-hosted-internal' || 'self-hosted' }}"
+
       - name: Initial checkout
         run: |
           rm -rf * .[^.]*  # Remove all files including hidden ones
