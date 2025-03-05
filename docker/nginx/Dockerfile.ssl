@@ -14,7 +14,8 @@ RUN mkdir -p /var/www/hls && \
     chown -R nginx:nginx /etc/nginx
 
 # Copy Nginx configuration and cleanup script
-COPY conf/nginx.ssl.conf /etc/nginx/nginx.conf
+ARG ENV=prod
+COPY conf/nginx.${ENV}.conf /etc/nginx/nginx.conf
 COPY scripts/cleanup.sh /usr/local/bin/cleanup.sh
 RUN chmod +x /usr/local/bin/cleanup.sh
 
