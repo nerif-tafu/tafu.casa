@@ -18,10 +18,14 @@ jobs:
           echo "Head ref: ${{ github.head_ref }}"
           echo "Runner: ${{ (github.event_name == 'pull_request' || github.ref == 'refs/heads/staging') && 'internal' || 'external' }}"
 
-      - name: Initial checkout
+      - name: Checkout code
         run: |
-          rm -rf * .[^.]*  # Remove all files including hidden ones
-          git clone https://github.com/${{ github.repository }} .
+          # Ensure we're starting fresh
+          rm -rf * .[^.]*
+          # Clone the repository
+          git init
+          git remote add origin https://github.com/${{ github.repository }}
+          git fetch origin ${{ github.sha }}
           git checkout ${{ github.sha }}
 
       - uses: ./.github/actions/checkout
