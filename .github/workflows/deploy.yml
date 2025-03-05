@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: ${{ github.ref == 'refs/heads/main' && 'self-hosted' || 'self-hosted-internal' }}
+    runs-on: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/staging' ? 'self-hosted-internal' : 'self-hosted' }}
     steps:
       - name: Initial checkout
         run: |
