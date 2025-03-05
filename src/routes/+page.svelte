@@ -23,25 +23,37 @@
     <hr class="border-gray-200/20">
     
     <section>
-      <h1 class="text-6xl font-bold hover-glow">Hello there.</h1>
+      <h1 class="text-6xl font-bold hover-glow">
+        <span class="magical-text">Hello</span> <span class="hover-shimmer">there</span><span class="hover-pulse">.</span>
+      </h1>
     </section>
     
     <hr class="border-gray-200/20">
     
     <section class="space-y-4">
       <p class="text-2xl text-white font-semibold">
-        Welcome to <span class="magical-text">tafu.casa</span>, please explore and see what 
+        Welcome to <span class="magical-text hover-float">tafu.casa</span>, please explore and see what 
         <span class="hover-shimmer">cards</span> you can <span class="hover-pulse">summon</span>.
       </p>
       <p class="text-1xl text-white font-semibold">
-        This site is a collection of ideas
+        This site is a collection of ideas and
         <Link to="projects" hidden>
-          <span class="magical-text">projects</span>
+          <span class="magical-text hover-float">projects</span>
         </Link> that I've been/am working on.
         Don't expect polish or well thought out ideas, this is a place for me to turn the 
         <Link to="about">
-          <span class="magical-text">ephemeral</span> into <span class="magical-text">permanent</span>
-        </Link>.
+          <span class="magical-text hover-float">ephemeral</span>
+        </Link> into <span class="hover-shimmer">permanent</span>.
+      </p>
+      <p class="text-1xl text-white font-semibold">
+        I've always loved finding <span class="hover-pulse">hidden links</span> and <span class="magical-text">unlisted pages</span> back in the early days of the internet, 
+        finding these backpages you were never meant to visit was a lot of fun. I wanted to try and emulate 
+        what it was like to <span class="hover-shimmer">bumble around</span> a site and click around. Stay around long enough and (maybe) you'll 
+        find some extra <Link to="image/pup" hidden><span class="hover-float">sneaky links</span></Link>.
+      </p>
+      <p class="text-sm text-gray italic mt-2 fade-in-out">
+        PS - yes i know you can just look at the source and find them, but 
+        don't be <span class="hover-pulse">lame</span>.
       </p>
     </section>
     
@@ -136,5 +148,16 @@
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
+  }
+
+  .fade-in-out {
+    animation: fadeInOut 4s ease-in-out infinite;
+    opacity: 0.6;
+  }
+
+  @keyframes fadeInOut {
+    0% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+    100% { opacity: 0.4; }
   }
 </style> 

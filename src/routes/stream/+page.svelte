@@ -511,6 +511,10 @@
   };
 </script>
 
+<svelte:head>
+  <link rel="icon" href="/stream/favicon.png" />
+</svelte:head>
+
 <main class="container mx-auto px-4 py-16">
   <div class="max-w-2xl mx-auto space-y-6">
     <section class="space-y-4">
