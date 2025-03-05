@@ -8,7 +8,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted-internal
+    runs-on: ${{ github.ref == 'refs/heads/main' && fromJSON('["self-hosted", "external"]') || fromJSON('["self-hosted", "internal"]') }}
     steps:
       - name: Debug runner selection
         run: |
@@ -16,7 +16,7 @@ jobs:
           echo "GitHub ref: ${{ github.ref }}"
           echo "Base ref: ${{ github.base_ref }}"
           echo "Head ref: ${{ github.head_ref }}"
-          echo "Runner: ${{ (github.event_name == 'pull_request' || github.ref == 'refs/heads/staging') && 'internal' || 'external' }}"
+          echo "Running on: ${{ github.ref == 'refs/heads/main' && 'external' || 'internal' }} runner"
 
       - name: Checkout code
         run: |
