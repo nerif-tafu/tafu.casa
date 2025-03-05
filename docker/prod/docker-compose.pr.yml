@@ -7,7 +7,7 @@ services:
       - PR_NUMBER=${PR_NUMBER}
       - VIRTUAL_HOST=pr-${PR_NUMBER}.demo.tafu.casa
       - VIRTUAL_PORT=3000
-    expose:
+    ports:
       - "3000"
     networks:
       - nginx-proxy
