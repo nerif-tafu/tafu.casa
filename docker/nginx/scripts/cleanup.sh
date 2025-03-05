@@ -12,7 +12,7 @@ trap cleanup SIGTERM SIGINT
 
 # Start cleanup loop in background
 while true; do
-    find /var/www/hls -type f -name "*.ts" -mmin +5 -delete
-    sleep 60 &
-    wait $!
+    find /var/www/hls -type f -mmin +5 -delete
+    find /var/www/dash -type f -mmin +5 -delete
+    sleep 300
 done 

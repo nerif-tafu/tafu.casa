@@ -1,7 +1,8 @@
 export const cardConfig = {
   '': {
     id: '',
-    image: '/LITTLEBITSPACE-9_DEATHS-BLACK.png',
+    image: '/images/LITTLEBITSPACE-9_DEATHS-BLACK.png',
+    imageVersion: '3',
     color: 'rgba(255, 255, 255, 0.8)',
     text: 'Home',
     navMessage: 'Returning to',
@@ -9,7 +10,8 @@ export const cardConfig = {
   },
   'about': {
     id: 'about',
-    image: '/LITTLEBITSPACE-9_DEATHS-GREEN.png',
+    image: '/images/LITTLEBITSPACE-9_DEATHS-GREEN.png',
+    imageVersion: '1',
     color: 'rgba(0, 255, 100, 0.8)',
     text: 'About Me',
     navMessage: 'All about my stuff and',
@@ -17,7 +19,8 @@ export const cardConfig = {
   },
   'projects': {
     id: 'projects',
-    image: '/LITTLEBITSPACE-9_DEATHS-BLUE.png',
+    image: '/images/LITTLEBITSPACE-9_DEATHS-BLUE.png',
+    imageVersion: '1',
     color: 'rgba(0, 130, 255, 0.8)',
     text: 'My Projects',
     navMessage: 'Checking out',
@@ -25,7 +28,8 @@ export const cardConfig = {
   },
   'stream': {
     id: 'stream',
-    image: '/LITTLEBITSPACE-9_DEATHS-BLACK.png',
+    image: '/images/LITTLEBITSPACE-9_DEATHS-BLACK.png',
+    imageVersion: '1',
     color: 'rgba(255, 255, 255, 0.8)',
     text: 'Stream',
     navMessage: 'Stepping in the',
@@ -33,7 +37,8 @@ export const cardConfig = {
   },
   'watch': {
     id: 'watch',
-    image: '/LITTLEBITSPACE-9_DEATHS-ORANGE.png',
+    image: '/images/LITTLEBITSPACE-9_DEATHS-ORANGE.png',
+    imageVersion: '1',
     color: 'rgba(255, 130, 0, 0.8)',
     text: 'Watch',
     navMessage: 'Tuning into',
@@ -46,6 +51,20 @@ export function getInitialCards() {
   return Object.values(cardConfig).map(card => ({
     id: card.id,
     image: card.image,
+    imageVersion: card.imageVersion,
     visited: false
   }));
+}
+
+// Helper function to check if cards need updating
+export function shouldUpdateCards(storedCards) {
+  if (!storedCards) return true;
+  
+  // Check if all cards exist and versions match
+  return !storedCards.every(storedCard => {
+    const configCard = cardConfig[storedCard.id || ''];
+    return configCard && 
+           configCard.image === storedCard.image &&
+           configCard.imageVersion === storedCard.imageVersion;
+  });
 } 

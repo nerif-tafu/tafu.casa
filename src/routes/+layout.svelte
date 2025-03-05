@@ -8,7 +8,7 @@
   import { onMount } from 'svelte';
   import { navigationState, visitedCards } from '$lib/stores/navigation';
   import { afterNavigate } from '$app/navigation';
-  import { getInitialCards, cardConfig } from '$lib/config/cards';
+  import { getInitialCards, cardConfig, shouldUpdateCards } from '$lib/config/cards';
   import { initializeCards, markPageAsVisited } from '$lib/stores/navigation';
 
   let isChecking = true;
@@ -69,6 +69,11 @@
         const stored = localStorage.getItem('visitedCards');
         if (stored) {
           const storedCards = JSON.parse(stored);
+          // Check if cards need updating due to version changes
+          if (shouldUpdateCards(storedCards)) {
+            initCards();
+            return handleRoute(path); // Retry with fresh cards
+          }
           const storedCard = storedCards.find(c => c.id === currentPath);
           if (storedCard?.visited) {
             shouldShowContent = true;
@@ -97,6 +102,7 @@
           newCards.push({
             id: currentPath,
             image: cardData.image,
+            imageVersion: cardData.imageVersion,
             visited: false
           });
           showingSplash = true;

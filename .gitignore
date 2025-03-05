@@ -133,3 +133,8 @@ dist
 
 certs/
 build/
+
+ideas.txt
+
+# Development certificates
+docker/dev/setup/certs/

@@ -1,8 +1,0 @@
-services:
-  nginx:
-    build: 
-      context: ./nginx
-      dockerfile: Dockerfile.dev
-    ports:
-      - "1935:1935"
-      - "8080:8080"  # Regular HTTP port 

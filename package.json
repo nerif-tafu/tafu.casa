@@ -6,13 +6,13 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "setup": "node scripts/setup-dev.js",
-    "prepare": "node -e \"try { require('./scripts/setup-dev.js') } catch(e) { console.log('Skipping cert setup in container') }\"",
-    "dev-client": "docker-compose -f docker-compose.client.yml up --build",
-    "dev-client-ssl": "docker-compose -f docker-compose.client-ssl.yml up --build",
-    "dev-server": "docker-compose -f docker-compose.server.yml up --build",
-    "dev-server-ssl": "docker-compose -f docker-compose.server-ssl.yml up --build",
-    "docker:down": "docker-compose down"
+    "dev:nossl": "docker compose -f docker/dev/docker-compose.yml up --build",
+    "dev:ssl": "node docker/dev/setup/setup-dev.js && docker compose -f docker/dev/docker-compose.yml -f docker/dev/docker-compose.ssl.yml up --build",
+    "deploy:main": "docker compose -f docker/prod/docker-compose.yml up -d",
+    "deploy:staging": "docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.staging.yml up -d",
+    "deploy:pr": "PR_NUMBER=$1 docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.pr.yml up -d",
+    "down": "docker compose -f docker/dev/docker-compose.yml down",
+    "down:prod": "docker compose -f docker/prod/docker-compose.yml down"
   },
   "type": "module",
   "dependencies": {

@@ -2,7 +2,7 @@ import { writable, get } from 'svelte/store';
 import { goto } from '$app/navigation';
 import { tweened } from 'svelte/motion';
 import { cubicOut } from 'svelte/easing';
-import { cardConfig } from '$lib/config/cards';
+import { cardConfig, getInitialCards, shouldUpdateCards } from '$lib/config/cards';
 
 // Store for visited cards
 export const visitedCards = writable([]);
@@ -127,25 +127,31 @@ export async function handleNavigation(cardId, isCardDrag = false, isLink = fals
 
 // Function to initialize cards
 export function initializeCards() {
-  const storedCards = typeof window !== 'undefined' 
-    ? localStorage.getItem('visitedCards')
-    : null;
-
-  if (storedCards) {
-    const parsedCards = JSON.parse(storedCards);
-    visitedCards.set(parsedCards);
-  } else {
-    // Initialize all cards as unvisited
-    const initialCards = Object.entries(cardConfig).map(([id, card]) => ({
-      id: id,
-      image: card.image,
-      visited: false // All cards start unvisited, including root
-    }));
-    visitedCards.set(initialCards);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('visitedCards', JSON.stringify(initialCards));
+  // Check localStorage first
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('visitedCards');
+    if (stored) {
+      try {
+        const storedCards = JSON.parse(stored);
+        // Check if cards need updating due to version changes
+        if (shouldUpdateCards(storedCards)) {
+          const initialCards = getInitialCards();
+          visitedCards.set(initialCards);
+          localStorage.setItem('visitedCards', JSON.stringify(initialCards));
+          return;
+        }
+        visitedCards.set(storedCards);
+        return;
+      } catch (error) {
+        console.error('Error parsing stored cards:', error);
+      }
     }
   }
+
+  // Initialize with default cards if no valid stored cards
+  const initialCards = getInitialCards();
+  visitedCards.set(initialCards);
+  localStorage.setItem('visitedCards', JSON.stringify(initialCards));
 }
 
 // Function to mark a page as visited

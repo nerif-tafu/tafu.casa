@@ -1,11 +1,13 @@
 services:
   web:
-    build: .
+    build: 
+      context: ../../
+      target: development
     container_name: tafu-web
     ports:
       - "3000:3000"
     volumes:
-      - ./:/app
+      - ../../:/app
       - /app/node_modules
     environment:
       - NODE_ENV=development
@@ -14,13 +16,13 @@ services:
     stop_grace_period: 1s
 
   webrtc:
-    build: ./server
+    build: ../../server
     container_name: tafu-webrtc
     ports:
       - "3001:3001"      # WebSocket
       - "2000-2020:2000-2020/udp"  # WebRTC media
     volumes:
-      - ./server:/app
+      - ../../server:/app
       - /app/node_modules
     environment:
       - NODE_ENV=development
@@ -29,11 +31,13 @@ services:
     stop_grace_period: 1s
 
   nginx:
-    build: ./nginx
+    build: 
+      context: ../nginx
+      dockerfile: Dockerfile.dev
     ports:
       - "1935:1935"
-      - "8443:8080"  # Map to 8443 for SSL
+      - "8080:8080"
     volumes:
-      - ./nginx/certs:/etc/nginx/certs
+      - ./setup/certs:/etc/nginx/certs
     stop_signal: SIGTERM
     stop_grace_period: 1s

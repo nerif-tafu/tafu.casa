@@ -4,7 +4,8 @@ RUN apk update && apk add --no-cache \
     nginx \
     nginx-mod-rtmp \
     ffmpeg \
-    findutils
+    findutils \
+    dos2unix
 
 RUN mkdir -p /var/www/hls && \
     mkdir -p /var/www/dash && \
@@ -12,13 +13,13 @@ RUN mkdir -p /var/www/hls && \
     chown -R nginx:nginx /var/www
 
 # Copy configs and scripts
-COPY nginx.ssl.conf /etc/nginx/nginx.conf
-COPY cleanup.sh /usr/local/bin/cleanup.sh
-RUN chmod +x /usr/local/bin/cleanup.sh
+COPY conf/nginx.ssl.conf /etc/nginx/nginx.conf
+COPY scripts/cleanup.sh /usr/local/bin/cleanup.sh
+RUN chmod +x /usr/local/bin/cleanup.sh && \
+    dos2unix /usr/local/bin/cleanup.sh
 
 # SSL certs will be mounted as volume
 EXPOSE 1935
 EXPOSE 8080
 
-WORKDIR /usr/local/bin
-CMD sh -c "./cleanup.sh & nginx -g 'daemon off;'" 
+CMD sh -c "/usr/local/bin/cleanup.sh & nginx -g 'daemon off;'" 

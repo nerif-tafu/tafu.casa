@@ -1,10 +1,9 @@
-FROM node:20-alpine as base
+FROM node:20-alpine AS base
 
 WORKDIR /app
 
-# Copy package files and scripts first
+# Copy package files
 COPY package*.json ./
-COPY scripts ./scripts/
 
 # Install dependencies
 RUN npm install --legacy-peer-deps
@@ -13,11 +12,11 @@ RUN npm install --legacy-peer-deps
 COPY . .
 
 # Development target
-FROM base as development
+FROM base AS development
 CMD ["npm", "run", "dev", "--", "--host"]
 
 # Production target
-FROM base as production
+FROM base AS production
 RUN npm run build
 CMD ["node", "build"]
 

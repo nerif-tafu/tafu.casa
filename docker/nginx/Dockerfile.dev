@@ -1,0 +1,24 @@
+FROM alpine:3.18
+
+RUN apk update && apk add --no-cache \
+    nginx \
+    nginx-mod-rtmp \
+    ffmpeg \
+    findutils \
+    dos2unix
+
+RUN mkdir -p /var/www/hls && \
+    mkdir -p /var/www/dash && \
+    chown -R nginx:nginx /var/www
+
+COPY conf/nginx.dev.conf /etc/nginx/nginx.conf
+COPY scripts/cleanup.sh /usr/local/bin/cleanup.sh
+RUN chmod +x /usr/local/bin/cleanup.sh && \
+    dos2unix /usr/local/bin/cleanup.sh && \
+    mkdir -p /var/www/hls /var/www/dash && \
+    chown -R nginx:nginx /var/www
+
+EXPOSE 1935
+EXPOSE 8080
+
+CMD sh -c "sh /usr/local/bin/cleanup.sh & nginx -g 'daemon off;'" 

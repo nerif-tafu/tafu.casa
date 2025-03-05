@@ -1,11 +1,10 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import fs from 'fs';
+import path from 'path';
 
 export default defineConfig(({ mode }) => {
-	const useSSL = process.env.USE_SSL === 'true';
-	
-	return {
+	const config = {
 		plugins: [sveltekit()],
 		server: {
 			host: '0.0.0.0',
@@ -13,13 +12,23 @@ export default defineConfig(({ mode }) => {
 			strictPort: true,
 			watch: {
 				usePolling: true
-			},
-			...(useSSL && {
-				https: {
-					key: fs.readFileSync('./nginx/certs/private.key'),
-					cert: fs.readFileSync('./nginx/certs/certificate.crt'),
-				}
-			})
+			}
 		}
 	};
+
+	// Add HTTPS configuration only if USE_SSL is true
+	if (process.env.USE_SSL === 'true') {
+		try {
+			config.server = {
+				https: {
+					key: fs.readFileSync(path.resolve('./certs/private.key')),
+					cert: fs.readFileSync(path.resolve('./certs/certificate.crt'))
+				}
+			};
+		} catch (error) {
+			console.warn('SSL certificates not found, falling back to HTTP');
+		}
+	}
+
+	return config;
 }); 

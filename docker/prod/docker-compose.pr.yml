@@ -1,0 +1,5 @@
+services:
+  web:
+    image: tafu-web:pr-${PR_NUMBER}
+    ports:
+      - "35${PR_NUMBER}:3000" 
