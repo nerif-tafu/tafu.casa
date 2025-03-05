@@ -7,6 +7,8 @@
   import { navigating, page } from '$app/stores';
   import { onMount } from 'svelte';
   import { writable } from 'svelte/store';
+  import { navigationState } from '$lib/stores/navigation';
+  import { afterNavigate } from '$app/navigation';
 
   let showingSplash = false;
   let fontsLoaded = false;
@@ -108,6 +110,21 @@
   $: if ($page) {
     // handleRoute($page.url.pathname);
   }
+
+  // Add a delay before resetting navigation state
+  function resetNavigationWithDelay() {
+    setTimeout(() => {
+      navigationState.set({
+        isNavigating: false,
+        destination: null
+      });
+    }, 1000); // Delay to match the navigation animation
+  }
+
+  // Update afterNavigate to use delayed reset
+  afterNavigate(() => {
+    resetNavigationWithDelay();
+  });
 </script>
 
 {#if showingSplash}
@@ -119,6 +136,21 @@
     in:fade={{ duration: 300, delay: 150 }}
     out:fade={{ duration: 150 }}
   >
+    {#if $navigationState.isNavigating}
+      <div 
+        class="fixed w-full py-8 text-center navigation-bar"
+        style="
+          z-index: 9999;
+          top: 50vh;
+          transform: translateY(-50%);
+        "
+        in:fade={{ duration: 200 }}
+        out:fade={{ duration: 300 }}
+      >
+        <div class="text-sm tracking-wider mb-2 opacity-80 text-white">{$navigationState.message}</div>
+        <div class="text-4xl font-bold text-white">{$navigationState.destination}</div>
+      </div>
+    {/if}
     <slot />
   </div>
 {/if}
@@ -141,4 +173,31 @@
   </button>
 {/if}
 
-<CardDeck cards={$visitedCards} /> 
+<CardDeck cards={$visitedCards} />
+
+<style>
+  .navigation-bar {
+    position: fixed;
+    background: rgba(0, 0, 0, 0.9);
+  }
+
+  .navigation-bar::before,
+  .navigation-bar::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 40px;
+    pointer-events: none;
+  }
+
+  .navigation-bar::before {
+    top: -40px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+  }
+
+  .navigation-bar::after {
+    bottom: -40px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
+  }
+</style> 

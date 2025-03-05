@@ -5,6 +5,7 @@
   import { goto, afterNavigate } from '$app/navigation';
   import { browser } from '$app/environment';
   import { onDestroy, onMount } from 'svelte';
+  import { navigationState } from '$lib/stores/navigation';
 
   export let cards = [];
 
@@ -24,12 +25,32 @@
     isReleased: false
   };
 
-  // Add card theme colors
+  // Add card theme colors and navigation text
   const cardColors = {
-    '': 'rgba(255, 255, 255, 0.8)',        // White for black card
-    'about': 'rgba(0, 255, 100, 0.8)',     // Green
-    'projects': 'rgba(0, 130, 255, 0.8)',   // Blue
-    'stream': 'rgba(255, 130, 0, 0.8)'     // Orange
+    '': {
+      color: 'rgba(255, 255, 255, 0.8)',
+      text: 'Home',
+      navMessage: 'Returning to',
+      destination: 'The Void'
+    },
+    'about': {
+      color: 'rgba(0, 255, 100, 0.8)',
+      text: 'About Me',
+      navMessage: 'Learning about',
+      destination: 'The Developer'
+    },
+    'projects': {
+      color: 'rgba(0, 130, 255, 0.8)',
+      text: 'My Projects',
+      navMessage: 'Checking out',
+      destination: 'The Portfolio'
+    },
+    'stream': {
+      color: 'rgba(255, 130, 0, 0.8)',
+      text: 'Live Stream',
+      navMessage: 'Tuning into',
+      destination: 'The Stream'
+    }
   };
 
   // Add state for overlay opacity
@@ -321,9 +342,13 @@
 
     if (distanceToCenter < 150 && draggedCard.card) {
       draggedCard.isReleased = true;
+      navigationState.set({
+        isNavigating: true,
+        destination: cardColors[draggedCard.card.id].destination,
+        message: cardColors[draggedCard.card.id].navMessage
+      });
 
       setTimeout(() => {        
-        // Actually no idea why this brings it to the center??!
         cardPosition.set({ 
           x: 0,
           y: -360
@@ -331,8 +356,13 @@
           duration: 1300,
           easing: cubicOut
         }).then(() => {
-          createDot($cardPosition.x, $cardPosition.y, "Purple")
-          goto('/' + draggedCard.card.id);
+          goto('/' + draggedCard.card.id).then(() => {
+            // Reset navigation state after navigation
+            navigationState.set({
+              isNavigating: false,
+              destination: null
+            });
+          });
         });
         cleanupDrag(true);
       }, 100);
@@ -447,7 +477,7 @@
           class:vibrating={isActive && !draggedCard.isReleased}
           class:vibrating-release={isActive && draggedCard.isReleased}
           style="
-            --card-color: {cardColors[card.id]};
+            --card-color: {cardColors[card.id].color};
             --vib-x: {isActive ? vibrationIntensity * 2 : 0}px;
             --vib-y: {isActive ? vibrationIntensity * 2 : 0}px;
             --vib-rot: {isActive ? vibrationIntensity * 2 : 0}deg;
@@ -554,5 +584,30 @@
 
   .vibrating-release {
     animation: vibrate-release 1.3s ease-out forwards;
+  }
+
+  .navigation-bar {
+    position: relative;
+    background: rgba(0, 0, 0, 0.9);
+  }
+
+  .navigation-bar::before,
+  .navigation-bar::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 40px;
+    pointer-events: none;
+  }
+
+  .navigation-bar::before {
+    top: -40px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+  }
+
+  .navigation-bar::after {
+    bottom: -40px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9), transparent);
   }
 </style> 
