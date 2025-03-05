@@ -71,15 +71,15 @@ jobs:
       - name: Deploy
         run: |
           if [[ $DEPLOY_ENV == "prod" ]]; then
-            docker compose -f docker/prod/docker-compose.yml down
-            docker compose -f docker/prod/docker-compose.yml up -d
+            TAG=prod docker compose -f docker/prod/docker-compose.yml down
+            TAG=prod docker compose -f docker/prod/docker-compose.yml up -d
           elif [[ $DEPLOY_ENV == "staging" ]]; then
-            docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.staging.yml down
-            docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.staging.yml up -d
+            TAG=staging docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.staging.yml down
+            TAG=staging docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.staging.yml up -d
           else
             PR_NUMBER=${{ env.PR_NUMBER }}
-            docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.pr.yml down
-            PR_NUMBER=$PR_NUMBER docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.pr.yml up -d
+            TAG=pr-${PR_NUMBER} docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.pr.yml down
+            TAG=pr-${PR_NUMBER} docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.pr.yml up -d
           fi
 
       - name: Clean up old images

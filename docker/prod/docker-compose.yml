@@ -1,12 +1,26 @@
 version: '3'
 services:
   web:
-    image: tafu-web:${TAG:-latest}
+    image: tafu-web:${TAG}
     restart: unless-stopped
     ports:
       - "${PORT:-3443}:3000"
     environment:
       - NODE_ENV=production
+    networks:
+      - nginx-proxy
+
+  webrtc:
+    image: tafu-webrtc:${TAG}
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    networks:
+      - nginx-proxy
+
+  nginx:
+    image: tafu-nginx:${TAG}
+    restart: unless-stopped
     networks:
       - nginx-proxy
 
