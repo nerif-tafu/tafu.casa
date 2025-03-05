@@ -25,6 +25,8 @@ services:
     environment:
       - VIRTUAL_HOST=stream-pr-${PR_NUMBER}.demo.tafu.casa
       - VIRTUAL_PORT=8080
+    volumes:
+      - /etc/letsencrypt:/etc/nginx/certs:ro
     networks:
       - nginx-proxy
 
