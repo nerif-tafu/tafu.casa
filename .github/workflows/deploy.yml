@@ -70,6 +70,9 @@ jobs:
 
       - name: Deploy
         run: |
+          # Create external network if it doesn't exist
+          docker network create nginx-proxy || true
+
           if [[ $DEPLOY_ENV == "prod" ]]; then
             TAG=prod docker compose -f docker/prod/docker-compose.yml down
             TAG=prod docker compose -f docker/prod/docker-compose.yml up -d
