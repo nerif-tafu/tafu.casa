@@ -26,6 +26,16 @@ services:
     networks:
       - nginx-proxy
 
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy
+    container_name: nginx-proxy
+    ports:
+      - "8080:8080"  # Expose to host network
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    networks:
+      - nginx-proxy
+
 networks:
   nginx-proxy:
     external: true 
