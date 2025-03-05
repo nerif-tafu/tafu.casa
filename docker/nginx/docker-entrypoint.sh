@@ -6,7 +6,7 @@ ln -sf /etc/nginx/certs/live/demo.tafu.casa/fullchain.pem /etc/nginx/certs/certi
 ln -sf /etc/nginx/certs/live/demo.tafu.casa/privkey.pem /etc/nginx/certs/private.key
 
 # Start cleanup script in background
-/cleanup.sh &
+/usr/local/bin/cleanup.sh &
 
 # Execute the main command (nginx)
 exec "$@" 
