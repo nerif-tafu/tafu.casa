@@ -1,5 +1,33 @@
 services:
   web:
     image: tafu-web:pr-${PR_NUMBER}
-    ports:
-      - "35${PR_NUMBER}:3000" 
+    environment:
+      - NODE_ENV=production
+      - PR_PREVIEW=true
+      - PR_NUMBER=${PR_NUMBER}
+      - VIRTUAL_HOST=pr-${PR_NUMBER}.demo.tafu.casa
+      - VIRTUAL_PORT=3000
+    networks:
+      - nginx-proxy
+
+  webrtc:
+    image: tafu-webrtc:pr-${PR_NUMBER}
+    environment:
+      - NODE_ENV=production
+      - PR_PREVIEW=true
+      - VIRTUAL_HOST=webrtc-pr-${PR_NUMBER}.demo.tafu.casa
+      - VIRTUAL_PORT=3001
+    networks:
+      - nginx-proxy
+
+  nginx:
+    image: tafu-nginx:pr-${PR_NUMBER}
+    environment:
+      - VIRTUAL_HOST=stream-pr-${PR_NUMBER}.demo.tafu.casa
+      - VIRTUAL_PORT=8080
+    networks:
+      - nginx-proxy
+
+networks:
+  nginx-proxy:
+    external: true 

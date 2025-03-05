@@ -1,0 +1,95 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main, staging ]
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ${{ (github.event_name == 'pull_request' || github.ref == 'refs/heads/staging') && 'self-hosted-internal' || 'self-hosted' }}
+    steps:
+      - name: Initial checkout
+        run: |
+          rm -rf * .[^.]*  # Remove all files including hidden ones
+          git clone https://github.com/${{ github.repository }} .
+          git checkout ${{ github.sha }}
+
+      - uses: ./.github/actions/checkout
+
+      - name: Set up environment variables
+        run: |
+          if [[ $GITHUB_REF == "refs/heads/main" ]]; then
+            echo "DEPLOY_ENV=prod" >> $GITHUB_ENV
+            echo "DOMAIN=tafu.casa" >> $GITHUB_ENV
+            echo "NGINX_PORT=3000" >> $GITHUB_ENV
+          elif [[ $GITHUB_REF == "refs/heads/staging" ]]; then
+            echo "DEPLOY_ENV=staging" >> $GITHUB_ENV
+            echo "DOMAIN=app.staging.tafu.casa" >> $GITHUB_ENV
+            echo "NGINX_PORT=3000" >> $GITHUB_ENV
+          else
+            echo "DEPLOY_ENV=pr" >> $GITHUB_ENV
+            PR_NUMBER=$(echo $GITHUB_REF | sed 's/refs\/pull\/\([0-9]*\).*/\1/')
+            echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+            echo "DOMAIN=pr-${PR_NUMBER}.demo.tafu.casa" >> $GITHUB_ENV
+            echo "NGINX_PORT=35${PR_NUMBER}" >> $GITHUB_ENV
+          fi
+
+      - name: Build images
+        run: |
+          if [[ $DEPLOY_ENV == "pr" ]]; then
+            docker build \
+              --build-arg DOMAIN=$DOMAIN \
+              -t tafu-web:pr-${PR_NUMBER} \
+              -f Dockerfile .
+            docker build \
+              --build-arg DOMAIN=$DOMAIN \
+              -t tafu-webrtc:pr-${PR_NUMBER} \
+              -f server/Dockerfile .
+            docker build \
+              --build-arg DOMAIN=$DOMAIN \
+              -t tafu-nginx:pr-${PR_NUMBER} \
+              -f docker/nginx/Dockerfile.ssl \
+              docker/nginx
+          else
+            docker build \
+              --build-arg DOMAIN=$DOMAIN \
+              -t tafu-web:${DEPLOY_ENV} \
+              -f Dockerfile .
+            docker build \
+              --build-arg DOMAIN=$DOMAIN \
+              -t tafu-webrtc:${DEPLOY_ENV} \
+              -f server/Dockerfile .
+            docker build \
+              --build-arg DOMAIN=$DOMAIN \
+              -t tafu-nginx:${DEPLOY_ENV} \
+              -f docker/nginx/Dockerfile.ssl \
+              docker/nginx
+          fi
+
+      - name: Deploy
+        run: |
+          # Create external network if it doesn't exist
+          docker network create nginx-proxy || true
+
+          if [[ $DEPLOY_ENV == "prod" ]]; then
+            TAG=prod docker compose -f docker/prod/docker-compose.yml down
+            TAG=prod docker compose -f docker/prod/docker-compose.yml up -d
+          elif [[ $DEPLOY_ENV == "staging" ]]; then
+            TAG=staging docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.staging.yml down
+            TAG=staging docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.staging.yml up -d
+          else
+            PR_NUMBER=${{ env.PR_NUMBER }}
+            TAG=pr-${PR_NUMBER} docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.pr.yml down
+            TAG=pr-${PR_NUMBER} docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.pr.yml up -d
+          fi
+
+      - name: Clean up old images
+        run: docker image prune -f
+
+      - name: Notify on Success
+        if: success()
+        run: |
+          echo "Deployment successful to $DOMAIN"
+          # Add any notification logic here (Slack, Discord, etc) 
