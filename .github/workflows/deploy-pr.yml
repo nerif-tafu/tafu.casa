@@ -47,11 +47,23 @@ jobs:
       - name: Deploy PR Preview
         if: github.event.action != 'closed'
         run: |
+          # Ensure nginx-proxy is running and healthy
           docker network create nginx-proxy || true
+          if ! docker ps -q -f name=nginx-master; then
+            docker compose -f docker/prod/docker-compose.yml up -d nginx-proxy
+            sleep 5  # Give it time to start up
+          fi
+          
           # Stop and remove only PR-specific containers
           docker stop pr-${PR_NUMBER}-web pr-${PR_NUMBER}-webrtc pr-${PR_NUMBER}-nginx || true
           docker rm pr-${PR_NUMBER}-web pr-${PR_NUMBER}-webrtc pr-${PR_NUMBER}-nginx || true
+          
+          # Deploy new containers
           TAG=pr-${PR_NUMBER} docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.pr.yml up -d
+          
+          # Wait for containers to be healthy
+          echo "Waiting for containers to be ready..."
+          sleep 10
 
       - name: Clean up PR Environment
         if: github.event.action == 'closed'
