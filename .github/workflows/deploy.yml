@@ -35,17 +35,14 @@ jobs:
           if [[ $GITHUB_REF == "refs/heads/main" ]]; then
             echo "DEPLOY_ENV=prod" >> $GITHUB_ENV
             echo "DOMAIN=tafu.casa" >> $GITHUB_ENV
-            echo "NGINX_PORT=3000" >> $GITHUB_ENV
           elif [[ $GITHUB_REF == "refs/heads/staging" ]]; then
             echo "DEPLOY_ENV=staging" >> $GITHUB_ENV
             echo "DOMAIN=app.staging.tafu.casa" >> $GITHUB_ENV
-            echo "NGINX_PORT=3000" >> $GITHUB_ENV
           else
             echo "DEPLOY_ENV=pr" >> $GITHUB_ENV
             PR_NUMBER=$(echo $GITHUB_REF | sed 's/refs\/pull\/\([0-9]*\).*/\1/')
             echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
             echo "DOMAIN=pr-${PR_NUMBER}.demo.tafu.casa" >> $GITHUB_ENV
-            echo "NGINX_PORT=35${PR_NUMBER}" >> $GITHUB_ENV
           fi
 
       - name: Build images
