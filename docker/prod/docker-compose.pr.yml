@@ -34,7 +34,7 @@ services:
       - VIRTUAL_PORT=8080
       - WEB_UPSTREAM=pr-${PR_NUMBER}-web
       - WEBRTC_UPSTREAM=pr-${PR_NUMBER}-webrtc
-    expose:
+    ports:
       - "8080"
     networks:
       - nginx-proxy
