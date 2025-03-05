@@ -1,6 +1,7 @@
 services:
   web:
     image: tafu-web:pr-${PR_NUMBER}
+    container_name: pr-${PR_NUMBER}-web
     environment:
       - NODE_ENV=production
       - PR_PREVIEW=true
@@ -14,6 +15,7 @@ services:
 
   webrtc:
     image: tafu-webrtc:pr-${PR_NUMBER}
+    container_name: pr-${PR_NUMBER}-webrtc
     environment:
       - NODE_ENV=production
       - PR_PREVIEW=true
@@ -26,6 +28,7 @@ services:
 
   nginx:
     image: tafu-nginx:pr-${PR_NUMBER}
+    container_name: pr-${PR_NUMBER}-nginx
     environment:
       - VIRTUAL_HOST=stream-pr-${PR_NUMBER}.demo.tafu.casa
       - VIRTUAL_PORT=8080

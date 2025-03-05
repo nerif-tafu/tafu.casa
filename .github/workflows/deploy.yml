@@ -2,13 +2,13 @@ name: Deploy
 
 on:
   push:
-    branches: [ main, staging ]
+    branches: [main, staging]
   pull_request:
-    types: [ opened, synchronize, reopened ]
+    types: [opened, synchronize, reopened, closed]
 
 jobs:
-  build-and-deploy:
-    runs-on: ${{ (github.event_name == 'pull_request' || github.ref == 'refs/heads/staging') && 'internal' || 'external' }}
+  deploy:
+    runs-on: self-hosted-internal
     steps:
       - name: Debug runner selection
         run: |
@@ -101,4 +101,37 @@ jobs:
         if: success()
         run: |
           echo "Deployment successful to $DOMAIN"
-          # Add any notification logic here (Slack, Discord, etc) 
+          # Add any notification logic here (Slack, Discord, etc)
+
+      - name: Handle PR closure
+        if: github.event_name == 'pull_request' && github.event.action == 'closed'
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          
+          # Stop and remove only the PR-specific containers
+          docker compose -f docker/prod/docker-compose.pr.yml down
+          
+          # Remove PR-specific images
+          docker rmi tafu-web:pr-${PR_NUMBER} || true
+          docker rmi tafu-webrtc:pr-${PR_NUMBER} || true
+          docker rmi tafu-nginx:pr-${PR_NUMBER} || true
+        
+      - name: Deploy PR Preview
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          
+          # Build and deploy only PR-specific containers
+          docker compose -f docker/prod/docker-compose.pr.yml up -d --build
+
+      - name: Deploy Staging
+        if: github.ref == 'refs/heads/staging'
+        run: |
+          # Only rebuild and restart staging containers
+          docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.staging.yml up -d --build
+
+      - name: Deploy Production
+        if: github.ref == 'refs/heads/main'
+        run: |
+          # Only rebuild and restart production containers
+          docker compose -f docker/prod/docker-compose.yml up -d --build 
