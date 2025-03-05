@@ -50,7 +50,8 @@ jobs:
             docker build \
               --build-arg DOMAIN=$DOMAIN \
               -t tafu-nginx:pr-${PR_NUMBER} \
-              -f docker/nginx/Dockerfile.ssl .
+              -f docker/nginx/Dockerfile.ssl \
+              docker/nginx
           else
             docker build \
               --build-arg DOMAIN=$DOMAIN \
@@ -63,7 +64,8 @@ jobs:
             docker build \
               --build-arg DOMAIN=$DOMAIN \
               -t tafu-nginx:${DEPLOY_ENV} \
-              -f docker/nginx/Dockerfile.ssl .
+              -f docker/nginx/Dockerfile.ssl \
+              docker/nginx
           fi
 
       - name: Deploy
