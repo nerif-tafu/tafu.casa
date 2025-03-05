@@ -20,6 +20,9 @@ services:
   nginx:
     image: tafu-nginx:${TAG}
     restart: unless-stopped
+    environment:
+      - WEB_UPSTREAM=prod-web-1
+      - WEBRTC_UPSTREAM=prod-webrtc-1
     networks:
       - nginx-proxy
 

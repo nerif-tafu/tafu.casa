@@ -32,6 +32,8 @@ services:
     environment:
       - VIRTUAL_HOST=stream-pr-${PR_NUMBER}.demo.tafu.casa
       - VIRTUAL_PORT=8080
+      - WEB_UPSTREAM=pr-${PR_NUMBER}-web
+      - WEBRTC_UPSTREAM=pr-${PR_NUMBER}-webrtc
     expose:
       - "8080"
     networks:
