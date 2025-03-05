@@ -1,8 +1,6 @@
 services:
   web:
     image: tafu-web:staging
-    ports:
-      - "3443:3000"
   nginx:
     image: tafu-nginx:staging
     environment:
