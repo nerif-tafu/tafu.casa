@@ -65,6 +65,23 @@ jobs:
           echo "Waiting for containers to be ready..."
           sleep 10
 
+      - name: Comment PR
+        if: github.event.action != 'closed'
+        env:
+          URL: ${{ github.event.pull_request.comments_url }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          COMMENT="🚀 Preview environment deployed!\n\n"
+          COMMENT+="- Demo site: https://pr-${PR_NUMBER}.demo.tafu.casa\n"
+          
+          curl \
+            -X POST \
+            $URL \
+            -H "Content-Type: application/json" \
+            -H "Authorization: token $GH_PAT" \
+            --data "{\"body\":\"$COMMENT\"}"
+
       - name: Clean up PR Environment
         if: github.event.action == 'closed'
         run: |
