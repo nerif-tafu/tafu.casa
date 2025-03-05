@@ -1,0 +1,49 @@
+name: Deploy Staging
+
+on:
+  push:
+    branches: [staging]
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, internal]
+    steps:
+      - name: Checkout code
+        run: |
+          rm -rf * .[^.]*
+          git init
+          git remote add origin https://github.com/${{ github.repository }}
+          git fetch origin ${{ github.sha }}
+          git checkout ${{ github.sha }}
+
+      - uses: ./.github/actions/checkout
+
+      - name: Set up environment variables
+        run: |
+          echo "DEPLOY_ENV=staging" >> $GITHUB_ENV
+          echo "DOMAIN=app.staging.tafu.casa" >> $GITHUB_ENV
+
+      - name: Build images
+        run: |
+          docker build \
+            --build-arg DOMAIN=$DOMAIN \
+            -t tafu-web:staging \
+            -f Dockerfile .
+          docker build \
+            --build-arg DOMAIN=$DOMAIN \
+            -t tafu-webrtc:staging \
+            -f server/Dockerfile .
+          docker build \
+            --build-arg DOMAIN=$DOMAIN \
+            -t tafu-nginx:staging \
+            -f docker/nginx/Dockerfile.ssl \
+            docker/nginx
+
+      - name: Deploy
+        run: |
+          docker network create nginx-proxy || true
+          TAG=staging docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.staging.yml down
+          TAG=staging docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.staging.yml up -d
+
+      - name: Clean up old images
+        run: docker image prune -f 

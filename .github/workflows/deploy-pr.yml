@@ -1,0 +1,64 @@
+name: Deploy PR Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, internal]
+    steps:
+      - name: Checkout code
+        if: github.event.action != 'closed'
+        run: |
+          rm -rf * .[^.]*
+          git init
+          git remote add origin https://github.com/${{ github.repository }}
+          git fetch origin ${{ github.sha }}
+          git checkout ${{ github.sha }}
+
+      - uses: ./.github/actions/checkout
+        if: github.event.action != 'closed'
+
+      - name: Set up environment variables
+        if: github.event.action != 'closed'
+        run: |
+          echo "DEPLOY_ENV=pr" >> $GITHUB_ENV
+          echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          echo "DOMAIN=pr-${{ github.event.pull_request.number }}.demo.tafu.casa" >> $GITHUB_ENV
+
+      - name: Build images
+        if: github.event.action != 'closed'
+        run: |
+          docker build \
+            --build-arg DOMAIN=$DOMAIN \
+            -t tafu-web:pr-${PR_NUMBER} \
+            -f Dockerfile .
+          docker build \
+            --build-arg DOMAIN=$DOMAIN \
+            -t tafu-webrtc:pr-${PR_NUMBER} \
+            -f server/Dockerfile .
+          docker build \
+            --build-arg DOMAIN=$DOMAIN \
+            -t tafu-nginx:pr-${PR_NUMBER} \
+            -f docker/nginx/Dockerfile.ssl \
+            docker/nginx
+
+      - name: Deploy PR Preview
+        if: github.event.action != 'closed'
+        run: |
+          docker network create nginx-proxy || true
+          TAG=pr-${PR_NUMBER} docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.pr.yml down
+          TAG=pr-${PR_NUMBER} docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.pr.yml up -d
+
+      - name: Clean up PR Environment
+        if: github.event.action == 'closed'
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          docker compose -f docker/prod/docker-compose.pr.yml down
+          docker rmi tafu-web:pr-${PR_NUMBER} || true
+          docker rmi tafu-webrtc:pr-${PR_NUMBER} || true
+          docker rmi tafu-nginx:pr-${PR_NUMBER} || true
+
+      - name: Clean up old images
+        run: docker image prune -f 

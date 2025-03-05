@@ -9,54 +9,70 @@ A homepage for tafu.casa.
    - Package manager (one of):
      - Windows: [Chocolatey](https://chocolatey.org/)
      - macOS: [Homebrew](https://brew.sh/)
-     - Linux: apt (Debian/Ubuntu)
+     - Linux: apt, yum, etc.
 
-2. Start development:
-   ```bash
-   # Without SSL
-   npm run dev
+2. Install mkcert:
+   - Windows: choco install mkcert
+   - macOS: brew install mkcert
+   - Linux: apt install mkcert
 
-   # With SSL (will install mkcert and generate certificates if needed)
-   npm run dev:ssl
-   ```
+3. Install root certificate:
+   mkcert -install
 
-3. Access the development site:
-   - Without SSL:
-     - Web app: http://localhost:3000
-     - Streaming: http://localhost:8080
-     - WebRTC: ws://localhost:3001
-   
-   - With SSL:
-     - Web app: https://localhost:3443
-     - Streaming: https://localhost:8443
-     - WebRTC: wss://localhost:3001
+4. Install project dependencies:
+   npm install
 
-Note: When using SSL, certificates are automatically generated and trusted by your browser.
+5. Start development server:
+   - Without SSL: npm run dev:nossl
+   - With SSL: npm run dev:ssl
 
-## Troubleshooting
+The app will be available at:
+- Without SSL: http://localhost:3000
+- With SSL: https://localhost:3443
 
-### Docker Issues on Windows
+## Production Setup
 
-If you get an error about docker_engine or elevated privileges:
+1. Set up GitHub Actions runners:
+   - Main runner (production):
+     - Name: self-hosted
+     - Labels: self-hosted
+   - Internal runner (staging/PR previews):
+     - Name: self-hosted-internal
+     - Labels: self-hosted-internal
 
-1. Make sure Docker Desktop is running
-   - Open Docker Desktop
-   - Wait for the engine to fully start (green circle in bottom left)
+2. Create systemd service for each runner:
 
-2. If still getting permission errors:
-   - Close Docker Desktop
-   - Right-click Docker Desktop
-   - Select "Run as administrator"
-   - Try the docker:dev command again
+[Unit]
+Description=GitHub Actions Runner
+After=network.target
 
-3. If the error persists:
-   - Open PowerShell as Administrator
-   - Run: npm run docker:dev
+[Service]
+ExecStart=/opt/actions-runner/run.sh
+User=github-runner
+WorkingDirectory=/opt/actions-runner
+Restart=always
 
-Note: 
-- Self-signed certificates are for development only. Use proper SSL certificates in production.
-- When accessing HTTPS endpoints, you'll need to accept the self-signed certificate warning in your browser
-- The docker:dev command will start all services including nginx for streaming
+[Install]
+WantedBy=multi-user.target
+
+3. Enable and start the services:
+   sudo systemctl enable github-runner
+   sudo systemctl start github-runner
+
+## Deployment
+
+The app deploys automatically via GitHub Actions:
+- Push to main: Deploys to production (tafu.casa)
+- Push to staging: Deploys to staging (app.staging.tafu.casa)
+- Pull requests: Creates preview deployment (pr-{number}.demo.tafu.casa)
+
+## Architecture
+
+- Frontend: SvelteKit
+- Backend: Node.js
+- Media Server: Nginx-RTMP
+- Containers: Docker
+- CI/CD: GitHub Actions
 
 # WebRTC Streaming App
 

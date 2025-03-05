@@ -1,5 +1,8 @@
 services:
   web:
     image: tafu-web:staging
-    ports:
-      - "3443:3000" 
+  nginx:
+    image: tafu-nginx:staging
+    environment:
+      - WEB_UPSTREAM=staging-web-1
+      - WEBRTC_UPSTREAM=staging-webrtc-1 

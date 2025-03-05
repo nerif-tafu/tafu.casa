@@ -19,6 +19,8 @@ services:
     build:
       context: ../nginx
       dockerfile: Dockerfile.ssl
+    args:
+      ENV: dev
     ports:
       - "8443:8080"  # Map to 8443 for SSL
     volumes:
