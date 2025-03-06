@@ -5,9 +5,9 @@ services:
     environment:
       - NODE_ENV=production
       - VIRTUAL_HOST=staging.tafu.casa
-      - VIRTUAL_PORT=3000
+      - VIRTUAL_PORT=9000
     expose:
-      - "3000"
+      - "9000"
     networks:
       - nginx-proxy
 

@@ -5,7 +5,7 @@ services:
       target: development
     container_name: tafu-web
     ports:
-      - "3000:3000"
+      - "9000:9000"
     volumes:
       - ../../:/app
       - /app/node_modules

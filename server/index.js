@@ -1,5 +1,5 @@
 import { Server } from 'socket.io';
-import { createServer as createHttpServer } from 'http';
+import { createServer } from 'http';
 import { createServer as createHttpsServer } from 'https';
 import { config } from './config.js';
 import fs from 'fs';
@@ -11,7 +11,7 @@ const createServer = () => {
       cert: fs.readFileSync(config.server.ssl.cert)
     });
   }
-  return createHttpServer();
+  return createServer();
 };
 
 const httpServer = createServer();
@@ -24,6 +24,6 @@ const io = new Server(httpServer, {
 
 // ... rest of your server code ...
 
-httpServer.listen(config.server.port, () => {
-  console.log(`Server running on port ${config.server.port} ${config.server.ssl ? '(SSL)' : ''}`);
+httpServer.listen(config.server.port, '0.0.0.0', () => {
+  console.log(`WebSocket server running on port ${config.server.port}`);
 }); 

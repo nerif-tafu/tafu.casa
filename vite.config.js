@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
 		plugins: [sveltekit()],
 		server: {
 			host: '0.0.0.0',
-			port: 3000,
+			port: 9000,
 			strictPort: true,
 			watch: {
 				usePolling: true

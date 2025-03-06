@@ -30,4 +30,4 @@ COPY . .
 EXPOSE 9000
 EXPOSE 2000-2020/udp
 
-CMD ["npm", "run", "dev"] 
+CMD ["node", "index.js"] 
