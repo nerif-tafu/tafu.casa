@@ -14,6 +14,8 @@
   let reconnectAttempts = 0;
   let maxReconnectAttempts = 5;
   let reconnectInterval;
+  let isPreviewActive = false;
+  let hasPermissions = false;
 
   let stats = {
     resolution: '',
@@ -39,25 +41,25 @@
 
   let supportedResolutions = [];
 
-  const resolutionOptions = {
-    '1080p': { width: 1920, height: 1080, frameRate: 30 },
-    '720p': { width: 1280, height: 720, frameRate: 30 },
-    '480p': { width: 854, height: 480, frameRate: 30 },
-    '360p': { width: 640, height: 360, frameRate: 30 }
-  };
+  // Default resolutions to show before we test camera capabilities
+  supportedResolutions = [
+    { label: '720p (1280x720)', value: '720p', width: 1280, height: 720, frameRate: 30 },
+    { label: '480p (854x480)', value: '480p', width: 854, height: 480, frameRate: 30 },
+    { label: '360p (640x360)', value: '360p', width: 640, height: 360, frameRate: 30 }
+  ];
 
   let previewStream = null;
   let selectedSource = 'camera';
-  let isPreviewActive = false;
 
   const getServerUrl = () => {
     const hostname = window.location.hostname;
-    const protocol = hostname === 'localhost' ? 'ws' : 'wss';
+    // Always use wss when going through nginx on 443
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     console.log('Hostname:', hostname);
     console.log('Protocol:', protocol);
     
     if (hostname === 'localhost') {
-      return `${protocol}://${hostname}:9000`;
+      return `${protocol}://${hostname}${protocol === 'wss' ? ':443' : ':9001'}`;
     } else {
       const envPrefix = hostname.startsWith('pr-') 
         ? hostname.split('.')[0] 
@@ -102,169 +104,171 @@
   };
 
   const connectSocket = () => {
-    const url = getServerUrl();
-    console.log('Connecting to socket:', url);
-    socket = io(getServerUrl(), {
-      transports: ['websocket'],
-      path: '/socket.io/',
-      secure: true,
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000
-    });
-
-    socket.on('connect', () => {
-      console.log('Connected to signaling server');
-      isReconnecting = false;
-      reconnectAttempts = 0;
-      if (isStreaming) {
-        socket.emit('broadcaster');
-        // Recreate peer connections for existing watchers
-        socket.emit('get-watchers');
-      }
-    });
-
-    socket.on('connect_error', (error) => {
-      console.error('Connection Error:', error);
-      isReconnecting = true;
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Disconnected from signaling server');
-      isReconnecting = true;
-    });
-
-    socket.on('watcher', id => {
-      console.log('New watcher connected:', id);
-      const peerConnection = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' }
-        ]
+    try {
+      const url = getServerUrl();
+      console.log('Connecting to socket:', url);
+      socket = io(url, {
+        transports: ['websocket'],
+        secure: import.meta.env.VITE_USE_SSL === 'true',
+        reconnectionDelayMax: 10000,
+        reconnectionAttempts: maxReconnectAttempts
       });
-      
-      peerConnections.set(id, peerConnection);
 
-      try {
-        if (!localStream) {
-          console.error('No local stream available');
-          return;
-        }
-
-        const tracks = localStream.getTracks();
-        console.log('Local tracks to add:', tracks.map(t => ({ 
-          kind: t.kind, 
-          enabled: t.enabled, 
-          muted: t.muted,
-          readyState: t.readyState
-        })));
-
-        // Ensure video track is enabled
-        const videoTrack = tracks.find(t => t.kind === 'video');
-        if (videoTrack) {
-          videoTrack.enabled = true;
-        }
-
-        tracks.forEach(track => {
-          console.log(`Adding ${track.kind} track to peer connection`);
-          const sender = peerConnection.addTrack(track, localStream);
-          
-          // Set initial encoding parameters for video
-          if (track.kind === 'video') {
-            const params = sender.getParameters();
-            if (!params.encodings) params.encodings = [{}];
-            params.encodings[0].maxBitrate = qualitySettings[currentQuality].video.bitrate;
-            params.encodings[0].active = true;
-            sender.setParameters(params).catch(e => console.error('Error setting parameters:', e));
-          }
-          console.log(`Track added successfully: ${track.kind}`);
-        });
-      } catch (error) {
-        console.error('Error adding tracks:', error);
-      }
-
-      peerConnection.onicecandidate = event => {
-        if (event.candidate) {
-          socket.emit('candidate', id, event.candidate);
-        }
-      };
-
-      peerConnection.oniceconnectionstatechange = () => {
-        console.log('ICE connection state change:', peerConnection.iceConnectionState);
-      };
-
-      peerConnection.onconnectionstatechange = () => {
-        console.log('Connection state change:', peerConnection.connectionState);
-      };
-
-      console.log('Creating offer for watcher:', id);
-      peerConnection.createOffer()
-        .then(sdp => {
-          console.log('Setting local description');
-          return peerConnection.setLocalDescription(sdp);
-        })
-        .then(() => {
-          console.log('Sending offer to watcher');
-          socket.emit('offer', id, peerConnection.localDescription);
-        })
-        .catch(error => {
-          console.error('Error creating offer:', error);
-        });
-    });
-
-    socket.on('answer', (id, description) => {
-      peerConnections.get(id)?.setRemoteDescription(description);
-    });
-
-    socket.on('candidate', (id, candidate) => {
-      peerConnections.get(id)?.addIceCandidate(new RTCIceCandidate(candidate));
-    });
-
-    socket.on('disconnectPeer', id => {
-      peerConnections.get(id)?.close();
-      peerConnections.delete(id);
-    });
-
-    // New handler for getting current watchers after reconnect
-    socket.on('watchers', (watcherIds) => {
-      watcherIds.forEach(id => {
-        if (!peerConnections.has(id)) {
-          // Create new peer connection for this watcher
-          // This will trigger the 'watcher' event handler
-          socket.emit('reconnect-peer', id);
+      socket.on('connect', () => {
+        console.log('Connected to signaling server');
+        isReconnecting = false;
+        reconnectAttempts = 0;
+        if (isStreaming) {
+          socket.emit('broadcaster');
+          // Recreate peer connections for existing watchers
+          socket.emit('get-watchers');
         }
       });
-    });
 
-    socket.on('quality-change', (id, quality) => {
-      console.log(`Quality change request from ${id}:`, quality);
-      const peerConnection = peerConnections.get(id);
-      if (!peerConnection) return;
+      socket.on('connect_error', (error) => {
+        console.error('Connection Error:', error);
+        isReconnecting = true;
+        reconnectAttempts++;
+      });
 
-      const sender = peerConnection.getSenders().find(s => s.track?.kind === 'video');
-      if (!sender) return;
+      socket.on('disconnect', () => {
+        console.log('Disconnected from signaling server');
+        isReconnecting = true;
+      });
 
-      // Apply new constraints to the video track
-      const videoTrack = localStream.getVideoTracks()[0];
-      
-      videoTrack.applyConstraints({
-        width: { ideal: quality.width },
-        height: { ideal: quality.height },
-        frameRate: { ideal: 30 } // Keep framerate constant
-      }).then(() => {
-        // Update encoding parameters
-        const params = sender.getParameters();
-        if (!params.encodings) params.encodings = [{}];
-        params.encodings[0].maxBitrate = quality.bitrate;
+      socket.on('watcher', id => {
+        console.log('New watcher connected:', id);
+        const peerConnection = new RTCPeerConnection({
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' }
+          ]
+        });
         
-        return sender.setParameters(params);
-      }).then(() => {
-        console.log(`Quality updated for peer ${id} to ${quality.width}p`);
-        socket.emit('quality-updated', id, quality);
-      }).catch(error => {
-        console.error('Error updating quality:', error);
+        peerConnections.set(id, peerConnection);
+
+        try {
+          if (!localStream) {
+            console.error('No local stream available');
+            return;
+          }
+
+          const tracks = localStream.getTracks();
+          console.log('Local tracks to add:', tracks.map(t => ({ 
+            kind: t.kind, 
+            enabled: t.enabled, 
+            muted: t.muted,
+            readyState: t.readyState
+          })));
+
+          // Ensure video track is enabled
+          const videoTrack = tracks.find(t => t.kind === 'video');
+          if (videoTrack) {
+            videoTrack.enabled = true;
+          }
+
+          tracks.forEach(track => {
+            console.log(`Adding ${track.kind} track to peer connection`);
+            const sender = peerConnection.addTrack(track, localStream);
+            
+            // Set initial encoding parameters for video
+            if (track.kind === 'video') {
+              const params = sender.getParameters();
+              if (!params.encodings) params.encodings = [{}];
+              params.encodings[0].maxBitrate = qualitySettings[currentQuality].video.bitrate;
+              params.encodings[0].active = true;
+              sender.setParameters(params).catch(e => console.error('Error setting parameters:', e));
+            }
+            console.log(`Track added successfully: ${track.kind}`);
+          });
+        } catch (error) {
+          console.error('Error adding tracks:', error);
+        }
+
+        peerConnection.onicecandidate = event => {
+          if (event.candidate) {
+            socket.emit('candidate', id, event.candidate);
+          }
+        };
+
+        peerConnection.oniceconnectionstatechange = () => {
+          console.log('ICE connection state change:', peerConnection.iceConnectionState);
+        };
+
+        peerConnection.onconnectionstatechange = () => {
+          console.log('Connection state change:', peerConnection.connectionState);
+        };
+
+        console.log('Creating offer for watcher:', id);
+        peerConnection.createOffer()
+          .then(sdp => {
+            console.log('Setting local description');
+            return peerConnection.setLocalDescription(sdp);
+          })
+          .then(() => {
+            console.log('Sending offer to watcher');
+            socket.emit('offer', id, peerConnection.localDescription);
+          })
+          .catch(error => {
+            console.error('Error creating offer:', error);
+          });
       });
-    });
+
+      socket.on('answer', (id, description) => {
+        peerConnections.get(id)?.setRemoteDescription(description);
+      });
+
+      socket.on('candidate', (id, candidate) => {
+        peerConnections.get(id)?.addIceCandidate(new RTCIceCandidate(candidate));
+      });
+
+      socket.on('disconnectPeer', id => {
+        peerConnections.get(id)?.close();
+        peerConnections.delete(id);
+      });
+
+      // New handler for getting current watchers after reconnect
+      socket.on('watchers', (watcherIds) => {
+        watcherIds.forEach(id => {
+          if (!peerConnections.has(id)) {
+            // Create new peer connection for this watcher
+            // This will trigger the 'watcher' event handler
+            socket.emit('reconnect-peer', id);
+          }
+        });
+      });
+
+      socket.on('quality-change', (id, quality) => {
+        console.log(`Quality change request from ${id}:`, quality);
+        const peerConnection = peerConnections.get(id);
+        if (!peerConnection) return;
+
+        const sender = peerConnection.getSenders().find(s => s.track?.kind === 'video');
+        if (!sender) return;
+
+        // Apply new constraints to the video track
+        const videoTrack = localStream.getVideoTracks()[0];
+        
+        videoTrack.applyConstraints({
+          width: { ideal: quality.width },
+          height: { ideal: quality.height },
+          frameRate: { ideal: 30 } // Keep framerate constant
+        }).then(() => {
+          // Update encoding parameters
+          const params = sender.getParameters();
+          if (!params.encodings) params.encodings = [{}];
+          params.encodings[0].maxBitrate = quality.bitrate;
+          
+          return sender.setParameters(params);
+        }).then(() => {
+          console.log(`Quality updated for peer ${id} to ${quality.width}p`);
+          socket.emit('quality-updated', id, quality);
+        }).catch(error => {
+          console.error('Error updating quality:', error);
+        });
+      });
+    } catch (error) {
+      console.error('Error creating socket:', error);
+    }
   };
 
   const loadDevices = async () => {
@@ -346,7 +350,7 @@
     }
   };
 
-  const startPreview = async (source = 'camera') => {
+  async function startPreview(source = 'camera') {
     try {
       // Stop any existing preview
       if (previewStream) {
@@ -359,10 +363,8 @@
         stream = await navigator.mediaDevices.getUserMedia({
           audio: selectedAudioDevice ? { deviceId: { exact: selectedAudioDevice } } : true,
           video: {
-            deviceId: selectedVideoDevice ? { exact: selectedVideoDevice } : undefined,
-            width: { ideal: resolution.width },
-            height: { ideal: resolution.height },
-            frameRate: { ideal: resolution.frameRate }
+            deviceId: selectedVideoDevice ? { exact: selectedVideoDevice } : undefined
+            // Start with basic video - we'll update constraints after testing
           }
         });
       } else {
@@ -409,11 +411,32 @@
       localVideo.srcObject = stream;
       isPreviewActive = true;
       selectedSource = source;
+
+      // Wait a moment for the stream to initialize
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      try {
+        const supportedRes = await getSupportedResolutions();
+        console.log('Supported resolutions:', supportedRes);
+        // Update the supported resolutions list with actual capabilities
+        if (supportedRes.length > 0) {
+          supportedResolutions = supportedRes.map(res => ({
+            label: `${res.height}p (${res.width}x${res.height})`,
+            value: `${res.height}p`,
+            width: res.width,
+            height: res.height,
+            frameRate: 30
+          }));
+        }
+      } catch (error) {
+        console.warn('Error getting supported resolutions:', error);
+        // Keep using default resolutions if we can't test capabilities
+      }
     } catch (error) {
       console.error('Error starting preview:', error);
       isPreviewActive = false;
     }
-  };
+  }
 
   const startStream = async () => {
     try {
@@ -528,6 +551,45 @@
       startPreview('camera');
     }
   };
+
+  async function getSupportedResolutions() {
+    if (!previewStream) {
+      throw new Error('Camera access required before checking resolutions');
+    }
+
+    const resolutions = [
+      { width: 3840, height: 2160 }, // 4K
+      { width: 1920, height: 1080 }, // 1080p
+      { width: 1280, height: 720 },  // 720p
+      { width: 854, height: 480 },   // 480p
+      { width: 640, height: 360 },   // 360p
+      { width: 426, height: 240 }    // 240p
+    ];
+
+    const supported = [];
+    
+    for (const resolution of resolutions) {
+      try {
+        // Use existing stream's deviceId to ensure we test the same camera
+        const deviceId = previewStream.getVideoTracks()[0].getSettings().deviceId;
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            deviceId: { exact: deviceId },
+            width: { exact: resolution.width },
+            height: { exact: resolution.height }
+          }
+        });
+        
+        supported.push(resolution);
+        stream.getTracks().forEach(track => track.stop());
+      } catch (e) {
+        // This resolution is not supported
+        console.log(`Resolution ${resolution.width}x${resolution.height} not supported`);
+      }
+    }
+
+    return supported;
+  }
 </script>
 
 <main class="container mx-auto px-4 py-16">

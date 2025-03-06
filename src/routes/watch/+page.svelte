@@ -102,234 +102,251 @@
 
   const getServerUrl = () => {
     const hostname = window.location.hostname;
-    const useSSL = import.meta.env.VITE_USE_SSL === 'true';
-    const protocol = useSSL ? 'wss' : 'ws';  // Use wss:// for SSL
-    const port = '9000';
+    // Always use wss when going through nginx on 443
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    console.log('Hostname:', hostname);
+    console.log('Protocol:', protocol);
     
-    return `${protocol}://${hostname}:${port}`;
+    if (hostname === 'localhost') {
+      return `${protocol}://${hostname}${protocol === 'wss' ? ':443' : ':9001'}`;
+    } else {
+      const envPrefix = hostname.startsWith('pr-') 
+        ? hostname.split('.')[0] 
+        : hostname.startsWith('staging') 
+          ? 'staging'
+          : '';
+      
+      const wsHostname = envPrefix 
+        ? `webrtc-${envPrefix}.demo.tafu.casa`
+        : 'webrtc.tafu.casa';
+      
+      return `${protocol}://${wsHostname}`;
+    }
   };
 
   const connectToStream = () => {
     isReconnecting = true;
-    socket = io(getServerUrl(), {
-      transports: ['websocket'],
-      secure: import.meta.env.VITE_USE_SSL === 'true',
-      reconnection: true,
-      reconnectionAttempts: maxReconnectAttempts,
-      reconnectionDelay: 100,
-      reconnectionDelayMax: 1000,
-      timeout: 5000
-    });
+    try {
+      const url = getServerUrl();
+      console.log('Connecting to socket:', url);
+      socket = io(url, {
+        transports: ['websocket'],
+        reconnectionDelayMax: 10000,
+        reconnectionAttempts: maxReconnectAttempts
+      });
 
-    socket.on('connect', () => {
-      console.log('Connected to signaling server');
-      isReconnecting = false;
-      reconnectAttempts = 0;
-      socket.emit('watcher');
-      isWaitingForStream = true;
-    });
-
-    socket.on('broadcaster', () => {
-      console.log('Broadcaster available, waiting for offer');
-      isWaitingForStream = false;
-      socket.emit('watcher');
-    });
-
-    socket.on('disconnectPeer', () => {
-      console.log('Stream ended');
-      isWaitingForStream = true;
-      cleanupConnection();
-      if (socket?.connected) {
-        console.log('Attempting to reconnect to stream');
+      socket.on('connect', () => {
+        console.log('Connected to signaling server');
+        isReconnecting = false;
+        reconnectAttempts = 0;
         socket.emit('watcher');
-      }
-    });
+        isWaitingForStream = true;
+      });
 
-    socket.on('no-broadcaster', () => {
-      console.log('No broadcaster available');
-      isWaitingForStream = true;
-      cleanupConnection();
-    });
+      socket.on('broadcaster', () => {
+        console.log('Broadcaster available, waiting for offer');
+        isWaitingForStream = false;
+        socket.emit('watcher');
+      });
 
-    socket.on('offer', (id, description, sourceInfo) => {
-      console.log('Received offer from broadcaster with source info:', sourceInfo);
-      
-      if (pendingOffer) {
-        console.log('Ignoring offer - another offer is being processed');
-        return;
-      }
-      
-      pendingOffer = true;
-
-      try {
-        if (!peerConnection || peerConnection.connectionState !== 'connected') {
-          console.log('Cleaning up old connection');
-          cleanupConnection();
+      socket.on('disconnectPeer', () => {
+        console.log('Stream ended');
+        isWaitingForStream = true;
+        cleanupConnection();
+        if (socket?.connected) {
+          console.log('Attempting to reconnect to stream');
+          socket.emit('watcher');
         }
+      });
 
-        // Update source dimensions from broadcaster info
-        if (sourceInfo) {
-          console.log('Setting source dimensions from broadcaster:', sourceInfo);
-          sourceDimensions = {
-            width: sourceInfo.width,
-            height: sourceInfo.height
-          };
-          
-          // Set initial quality to highest available tier
-          const initialTier = calculateQualityTiers(sourceDimensions)[0];
-          if (initialTier) {
-            console.log('Setting initial quality tier:', initialTier);
-            currentQuality = initialTier.id;
+      socket.on('no-broadcaster', () => {
+        console.log('No broadcaster available');
+        isWaitingForStream = true;
+        cleanupConnection();
+      });
+
+      socket.on('offer', (id, description, sourceInfo) => {
+        console.log('Received offer from broadcaster with source info:', sourceInfo);
+        
+        if (pendingOffer) {
+          console.log('Ignoring offer - another offer is being processed');
+          return;
+        }
+        
+        pendingOffer = true;
+
+        try {
+          if (!peerConnection || peerConnection.connectionState !== 'connected') {
+            console.log('Cleaning up old connection');
+            cleanupConnection();
           }
-        }
 
-        if (!peerConnection) {
-          peerConnection = new RTCPeerConnection(rtcConfig);
-
-          // Add ICE connection monitoring
-          let iceConnectionTimeout;
-          let iceCandidatesComplete = false;
-
-          peerConnection.onicecandidate = event => {
-            if (event.candidate) {
-              console.log('Sending ICE candidate');
-              socket.emit('candidate', id, event.candidate);
-            } else {
-              console.log('ICE gathering complete');
-              iceCandidatesComplete = true;
-            }
-          };
-
-          peerConnection.onicegatheringstatechange = () => {
-            console.log('ICE gathering state:', peerConnection.iceGatheringState);
-          };
-
-          peerConnection.oniceconnectionstatechange = () => {
-            const state = peerConnection.iceConnectionState;
-            console.log('ICE connection state:', state);
-            
-            // Clear any existing timeout
-            if (iceConnectionTimeout) {
-              clearTimeout(iceConnectionTimeout);
-            }
-
-            if (state === 'checking') {
-              // Set timeout for ICE connection
-              iceConnectionTimeout = setTimeout(() => {
-                if (peerConnection.iceConnectionState === 'checking') {
-                  console.log('ICE connection timeout, restarting');
-                  peerConnection.restartIce();
-                }
-              }, 5000);
-            } else if (state === 'disconnected' || state === 'failed') {
-              console.log('Connection lost, attempting to reconnect');
-              isReconnecting = true;
-              cleanupConnection();
-              socket.emit('watcher');
-            } else if (state === 'connected') {
-              console.log('Connection established');
-              isReconnecting = false;
-            }
-          };
-
-          peerConnection.ontrack = event => {
-            console.log('Received media track:', {
-              kind: event.track.kind,
-              enabled: event.track.enabled,
-              muted: event.track.muted,
-              readyState: event.track.readyState
-            });
-            
-            if (!remoteVideo.srcObject) {
-              console.log('Creating new MediaStream');
-              const newStream = new MediaStream();
-              remoteVideo.srcObject = newStream;
-            }
-            
-            const stream = remoteVideo.srcObject;
-            stream.addTrack(event.track);
-            console.log(`Added ${event.track.kind} track to stream`);
-            
-            if (event.track.kind === 'video') {
-              // Don't update source dimensions here anymore
-              tryAutoplay();
-            }
-
-            event.track.onunmute = () => {
-              console.log(`Track ${event.track.kind} unmuted`);
+          // Update source dimensions from broadcaster info
+          if (sourceInfo) {
+            console.log('Setting source dimensions from broadcaster:', sourceInfo);
+            sourceDimensions = {
+              width: sourceInfo.width,
+              height: sourceInfo.height
             };
             
-            event.track.onmute = () => {
-              console.log(`Track ${event.track.kind} muted`);
-            };
-            
-            event.track.onended = () => {
-              console.log(`Track ${event.track.kind} ended`);
-              if (stream.getTracks().includes(event.track)) {
-                stream.removeTrack(event.track);
+            // Set initial quality to highest available tier
+            const initialTier = calculateQualityTiers(sourceDimensions)[0];
+            if (initialTier) {
+              console.log('Setting initial quality tier:', initialTier);
+              currentQuality = initialTier.id;
+            }
+          }
+
+          if (!peerConnection) {
+            peerConnection = new RTCPeerConnection(rtcConfig);
+
+            // Add ICE connection monitoring
+            let iceConnectionTimeout;
+            let iceCandidatesComplete = false;
+
+            peerConnection.onicecandidate = event => {
+              if (event.candidate) {
+                console.log('Sending ICE candidate');
+                socket.emit('candidate', id, event.candidate);
+              } else {
+                console.log('ICE gathering complete');
+                iceCandidatesComplete = true;
               }
             };
 
-            isConnected = true;
-            isWaitingForStream = false;
-          };
+            peerConnection.onicegatheringstatechange = () => {
+              console.log('ICE gathering state:', peerConnection.iceGatheringState);
+            };
+
+            peerConnection.oniceconnectionstatechange = () => {
+              const state = peerConnection.iceConnectionState;
+              console.log('ICE connection state:', state);
+              
+              // Clear any existing timeout
+              if (iceConnectionTimeout) {
+                clearTimeout(iceConnectionTimeout);
+              }
+
+              if (state === 'checking') {
+                // Set timeout for ICE connection
+                iceConnectionTimeout = setTimeout(() => {
+                  if (peerConnection.iceConnectionState === 'checking') {
+                    console.log('ICE connection timeout, restarting');
+                    peerConnection.restartIce();
+                  }
+                }, 5000);
+              } else if (state === 'disconnected' || state === 'failed') {
+                console.log('Connection lost, attempting to reconnect');
+                isReconnecting = true;
+                cleanupConnection();
+                socket.emit('watcher');
+              } else if (state === 'connected') {
+                console.log('Connection established');
+                isReconnecting = false;
+              }
+            };
+
+            peerConnection.ontrack = event => {
+              console.log('Received media track:', {
+                kind: event.track.kind,
+                enabled: event.track.enabled,
+                muted: event.track.muted,
+                readyState: event.track.readyState
+              });
+              
+              if (!remoteVideo.srcObject) {
+                console.log('Creating new MediaStream');
+                const newStream = new MediaStream();
+                remoteVideo.srcObject = newStream;
+              }
+              
+              const stream = remoteVideo.srcObject;
+              stream.addTrack(event.track);
+              console.log(`Added ${event.track.kind} track to stream`);
+              
+              if (event.track.kind === 'video') {
+                // Don't update source dimensions here anymore
+                tryAutoplay();
+              }
+
+              event.track.onunmute = () => {
+                console.log(`Track ${event.track.kind} unmuted`);
+              };
+              
+              event.track.onmute = () => {
+                console.log(`Track ${event.track.kind} muted`);
+              };
+              
+              event.track.onended = () => {
+                console.log(`Track ${event.track.kind} ended`);
+                if (stream.getTracks().includes(event.track)) {
+                  stream.removeTrack(event.track);
+                }
+              };
+
+              isConnected = true;
+              isWaitingForStream = false;
+            };
+          }
+
+          console.log('Setting remote description from offer');
+          peerConnection.setRemoteDescription(description)
+            .then(() => {
+              console.log('Set remote description, creating answer');
+              return peerConnection.createAnswer();
+            })
+            .then(sdp => {
+              console.log('Created answer, setting local description');
+              return peerConnection.setLocalDescription(sdp);
+            })
+            .then(() => {
+              console.log('Sending answer to broadcaster');
+              socket.emit('answer', id, peerConnection.localDescription);
+            })
+            .catch(error => {
+              console.error('Error in offer/answer process:', error);
+              cleanupConnection();
+            })
+            .finally(() => {
+              pendingOffer = false;
+            });
+        } catch (error) {
+          console.error('Error handling offer:', error);
+          cleanupConnection();
+          pendingOffer = false;
         }
+      });
 
-        console.log('Setting remote description from offer');
-        peerConnection.setRemoteDescription(description)
-          .then(() => {
-            console.log('Set remote description, creating answer');
-            return peerConnection.createAnswer();
-          })
-          .then(sdp => {
-            console.log('Created answer, setting local description');
-            return peerConnection.setLocalDescription(sdp);
-          })
-          .then(() => {
-            console.log('Sending answer to broadcaster');
-            socket.emit('answer', id, peerConnection.localDescription);
-          })
-          .catch(error => {
-            console.error('Error in offer/answer process:', error);
-            cleanupConnection();
-          })
-          .finally(() => {
-            pendingOffer = false;
-          });
-      } catch (error) {
-        console.error('Error handling offer:', error);
+      socket.on('candidate', (id, candidate) => {
+        peerConnection?.addIceCandidate(new RTCIceCandidate(candidate))
+          .catch(e => console.error(e));
+      });
+
+      socket.on('disconnect', () => {
+        console.log('Disconnected from signaling server');
+        isConnected = false;
+        isReconnecting = true;
         cleanupConnection();
-        pendingOffer = false;
-      }
-    });
+      });
 
-    socket.on('candidate', (id, candidate) => {
-      peerConnection?.addIceCandidate(new RTCIceCandidate(candidate))
-        .catch(e => console.error(e));
-    });
+      socket.on('connect_error', (error) => {
+        console.error('Connection Error:', error);
+        isReconnecting = true;
+      });
 
-    socket.on('disconnect', () => {
-      console.log('Disconnected from signaling server');
-      isConnected = false;
-      isReconnecting = true;
-      cleanupConnection();
-    });
-
-    socket.on('connect_error', (error) => {
-      console.error('Connection Error:', error);
-      isReconnecting = true;
-    });
-
-    socket.on('quality-updated', (quality) => {
-      console.log(`Quality updated to:`, quality);
-      // Find the matching tier
-      const matchingTier = qualityTiers.find(tier => 
-        tier.width === quality.width && tier.height === quality.height
-      );
-      if (matchingTier) {
-        currentQuality = matchingTier.id;
-      }
-    });
+      socket.on('quality-updated', (quality) => {
+        console.log(`Quality updated to:`, quality);
+        // Find the matching tier
+        const matchingTier = qualityTiers.find(tier => 
+          tier.width === quality.width && tier.height === quality.height
+        );
+        if (matchingTier) {
+          currentQuality = matchingTier.id;
+        }
+      });
+    } catch (error) {
+      console.error('Error creating socket:', error);
+    }
   };
 
   const setQuality = (tier) => {

@@ -18,10 +18,12 @@ services:
     stop_grace_period: 1s
 
   webrtc:
-    build: ../../server
+    build:
+      context: ../../
+      dockerfile: server/Dockerfile
     container_name: tafu-webrtc
     ports:
-      - "9000:9000"      # WebSocket
+      - "9001:9000"      # WebSocket
       - "2000-2020:2000-2020/udp"  # WebRTC media
     volumes:
       - ../../server:/app
@@ -41,5 +43,9 @@ services:
       - "8080:8080"
     volumes:
       - ./setup/certs:/etc/nginx/certs
+      - ../nginx/scripts:/usr/local/bin
+    environment:
+      - WEB_UPSTREAM=tafu-web:9000
+      - WEBRTC_UPSTREAM=tafu-webrtc:9000
     stop_signal: SIGTERM
     stop_grace_period: 1s

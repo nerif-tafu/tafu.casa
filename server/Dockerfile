@@ -23,11 +23,11 @@ RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install invoke
 
 WORKDIR /app
-COPY package*.json ./
+COPY server/package*.json ./
 RUN npm install
-COPY . .
+COPY server/ .
 
 EXPOSE 9000
 EXPOSE 2000-2020/udp
 
-CMD ["node", "index.js"] 
+CMD ["node", "server.js"] 
