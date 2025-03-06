@@ -20,6 +20,7 @@ services:
       - VIRTUAL_PORT=9000
     expose:
       - "9000"
+      - "2000-2020/udp"  # WebRTC media ports
     networks:
       - nginx-proxy
 

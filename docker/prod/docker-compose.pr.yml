@@ -23,6 +23,7 @@ services:
       - VIRTUAL_PORT=9000
     expose:
       - "9000"
+      - "2000-2020/udp"  # WebRTC media ports
     networks:
       - nginx-proxy
 
@@ -31,11 +32,11 @@ services:
     container_name: pr-${PR_NUMBER}-nginx
     environment:
       - VIRTUAL_HOST=stream-pr-${PR_NUMBER}.demo.tafu.casa
-      - VIRTUAL_PORT=8080
+      - VIRTUAL_PORT=9000
       - WEB_UPSTREAM=pr-${PR_NUMBER}-web
       - WEBRTC_UPSTREAM=pr-${PR_NUMBER}-webrtc
     expose:
-      - "8080"
+      - "9000"
     networks:
       - nginx-proxy
 
