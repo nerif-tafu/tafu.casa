@@ -57,7 +57,7 @@
     console.log('Protocol:', protocol);
     
     if (hostname === 'localhost') {
-      return `${protocol}://${hostname}:3001`;
+      return `${protocol}://${hostname}:9000`;
     } else {
       const envPrefix = hostname.startsWith('pr-') 
         ? hostname.split('.')[0] 
