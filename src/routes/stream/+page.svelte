@@ -54,9 +54,10 @@
     const hostname = window.location.hostname;
     // Always use WSS in production/staging/demo environments, WS only in development
     const protocol = hostname === 'localhost' ? 'ws' : 'wss';
-    const port = '3001';
+    // Use default HTTPS port (443) in production, specific port for development
+    const port = hostname === 'localhost' ? '3001' : '';
     
-    return `${protocol}://${hostname}:${port}`;
+    return `${protocol}://${hostname}${port ? ':' + port : ''}`;
   };
 
   const setVideoQuality = async (quality) => {
