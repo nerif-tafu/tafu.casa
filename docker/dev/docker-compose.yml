@@ -21,7 +21,7 @@ services:
     build: ../../server
     container_name: tafu-webrtc
     ports:
-      - "3001:3001"      # WebSocket
+      - "9000:9000"      # WebSocket
       - "2000-2020:2000-2020/udp"  # WebRTC media
     volumes:
       - ../../server:/app

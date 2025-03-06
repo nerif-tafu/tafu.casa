@@ -17,9 +17,9 @@ services:
     environment:
       - NODE_ENV=production
       - VIRTUAL_HOST=webrtc.${DOMAIN}
-      - VIRTUAL_PORT=3001
+      - VIRTUAL_PORT=9000
     expose:
-      - "3001"
+      - "9000"
     networks:
       - nginx-proxy
 

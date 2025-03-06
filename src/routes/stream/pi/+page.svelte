@@ -40,7 +40,7 @@
     const hostname = window.location.hostname;
     const useSSL = import.meta.env.VITE_USE_SSL === 'true';
     const protocol = useSSL ? 'wss' : 'ws';
-    const port = '3001';
+    const port = '9000';
     return `${protocol}://${hostname}:${port}`;
   };
 

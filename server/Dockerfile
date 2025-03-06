@@ -27,7 +27,7 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 
-EXPOSE 3001
+EXPOSE 9000
 EXPOSE 2000-2020/udp
 
 CMD ["npm", "run", "dev"] 
