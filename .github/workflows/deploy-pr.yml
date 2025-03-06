@@ -84,6 +84,24 @@ jobs:
           GH_PAT: ${{ secrets.GH_PAT }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
+          # Install jq
+          apt-get update && apt-get install -y jq
+          
+          # Get all comments for this PR
+          COMMENTS=$(curl -s \
+            -H "Authorization: token $GH_PAT" \
+            -H "Accept: application/vnd.github.v3+json" \
+            $URL)
+          
+          # Find and delete old deployment comments
+          echo "$COMMENTS" | jq -r '.[] | select(.body | startswith("🚀 Demo environment")) | .url' | while read -r comment_url; do
+            curl -X DELETE \
+              -H "Authorization: token $GH_PAT" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "$comment_url"
+          done
+          
+          # Post new deployment comment
           COMMENT="🚀 Demo environment deployed!\n\n"
           COMMENT+="- Demo site: https://pr-${PR_NUMBER}.demo.tafu.casa\n"
           
@@ -92,6 +110,7 @@ jobs:
             $URL \
             -H "Content-Type: application/json" \
             -H "Authorization: token $GH_PAT" \
+            -H "Accept: application/vnd.github.v3+json" \
             --data "{\"body\":\"$COMMENT\"}"
 
       # Comment when merged to staging

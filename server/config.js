@@ -1,6 +1,6 @@
 export const config = {
   server: {
-    port: 3001,
+    port: 9000,
     ssl: process.env.USE_SSL === 'true' ? {
       key: '/app/certs/private.key',
       cert: '/app/certs/certificate.crt'

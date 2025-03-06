@@ -20,5 +20,5 @@ FROM base AS production
 RUN npm run build
 CMD ["node", "build"]
 
-EXPOSE 3000
+EXPOSE 9000
 EXPOSE 24678 

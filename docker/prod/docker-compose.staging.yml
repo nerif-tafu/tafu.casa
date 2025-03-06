@@ -5,9 +5,9 @@ services:
     environment:
       - NODE_ENV=production
       - VIRTUAL_HOST=staging.tafu.casa
-      - VIRTUAL_PORT=3000
+      - VIRTUAL_PORT=9000
     expose:
-      - "3000"
+      - "9000"
     networks:
       - nginx-proxy
 
@@ -17,9 +17,10 @@ services:
     environment:
       - NODE_ENV=production
       - VIRTUAL_HOST=webrtc.staging.tafu.casa
-      - VIRTUAL_PORT=3001
+      - VIRTUAL_PORT=9000
     expose:
-      - "3001"
+      - "9000"
+      - "2000-2020/udp"  # WebRTC media ports
     networks:
       - nginx-proxy
 

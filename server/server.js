@@ -19,13 +19,22 @@ const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  }
+  },
+  path: '/socket.io/',
+  allowEIO3: true,
+  transports: ['websocket', 'polling']
 });
 
 let broadcaster;
 let watchers = new Set();
 
 io.on('connection', socket => {
+  console.log('New connection attempt:', {
+    id: socket.id,
+    headers: socket.handshake.headers,
+    address: socket.handshake.address
+  });
+
   // When a broadcaster connects
   socket.on('broadcaster', () => {
     console.log('Broadcaster connected:', socket.id);
@@ -101,7 +110,7 @@ io.on('connection', socket => {
 
 const startServer = async () => {
   try {
-    const port = process.env.PORT || 3001;
+    const port = process.env.PORT || 9000;
     server.listen(port, '0.0.0.0', () => {
       console.log(`Server listening on ${useSSL ? 'https' : 'http'}://0.0.0.0:${port}`);
     });

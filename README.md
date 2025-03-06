@@ -69,7 +69,7 @@ Where {service} is one of: web, webrtc, nginx
    - With SSL: npm run dev:ssl
 
 The app will be available at:
-- Without SSL: http://localhost:3000
+- Without SSL: http://localhost:9000
 - With SSL: https://localhost:3443
 
 ## Production Setup

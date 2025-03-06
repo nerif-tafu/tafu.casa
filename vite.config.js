@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
 		plugins: [sveltekit()],
 		server: {
 			host: '0.0.0.0',
-			port: 3000,
+			port: 9000,
 			strictPort: true,
 			watch: {
 				usePolling: true
@@ -19,11 +19,9 @@ export default defineConfig(({ mode }) => {
 	// Add HTTPS configuration only if USE_SSL is true
 	if (process.env.USE_SSL === 'true') {
 		try {
-			config.server = {
-				https: {
-					key: fs.readFileSync(path.resolve('./certs/private.key')),
-					cert: fs.readFileSync(path.resolve('./certs/certificate.crt'))
-				}
+			config.server.https = {
+				key: fs.readFileSync(path.resolve('./certs/private.key')),
+				cert: fs.readFileSync(path.resolve('./certs/certificate.crt'))
 			};
 		} catch (error) {
 			console.warn('SSL certificates not found, falling back to HTTP');

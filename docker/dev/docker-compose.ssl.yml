@@ -1,27 +1,20 @@
 services:
   web:
-    ports:
-      - "3443:3443"  # HTTPS port
-    volumes:
-      - ./setup/certs:/app/certs    # Additional SSL certs, doesn't affect hot reload
     environment:
-      - USE_SSL=true
-      - VITE_USE_SSL=true
-    command: npm run dev -- --host --port 3443
+    command: npm run dev -- --host
 
   webrtc:
-    volumes:
-      - ./setup/certs:/app/certs:ro
-    environment:
-      - USE_SSL=true
 
   nginx:
     build:
       context: ../nginx
       dockerfile: Dockerfile.ssl
-    args:
-      ENV: dev
+    environment:
+      - ENV=dev
+      - WEB_UPSTREAM=tafu-web:9000
+      - WEBRTC_UPSTREAM=tafu-webrtc:9000
     ports:
-      - "8443:8080"  # Map to 8443 for SSL
+      - "443:443"  # HTTPS
     volumes:
-      - ./setup/certs:/etc/nginx/certs:ro 
+      - ./setup/certs:/etc/nginx/certs:ro
+      - ../nginx/scripts:/usr/local/bin
