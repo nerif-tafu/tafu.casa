@@ -20,9 +20,9 @@ services:
       - NODE_ENV=production
       - PR_PREVIEW=true
       - VIRTUAL_HOST=webrtc-pr-${PR_NUMBER}.demo.tafu.casa
-      - VIRTUAL_PORT=3001
+      - VIRTUAL_PORT=9000
     expose:
-      - "3001"
+      - "9000"
     networks:
       - nginx-proxy
 

@@ -19,7 +19,10 @@ const io = new Server(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  }
+  },
+  path: '/socket.io/',
+  allowEIO3: true,
+  transports: ['websocket', 'polling']
 });
 
 let broadcaster;

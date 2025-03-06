@@ -54,10 +54,24 @@
     const hostname = window.location.hostname;
     // Always use WSS in production/staging/demo environments, WS only in development
     const protocol = hostname === 'localhost' ? 'ws' : 'wss';
-    // Use default HTTPS port (443) in production, specific port for development
-    const port = hostname === 'localhost' ? '3001' : '';
-    
-    return `${protocol}://${hostname}${port ? ':' + port : ''}`;
+    // Use the webrtc subdomain for WebSocket connections in production
+    if (hostname === 'localhost') {
+      return `${protocol}://${hostname}:3001`;
+    } else {
+      // Extract the environment prefix (pr-XX, staging, or none for prod)
+      const envPrefix = hostname.startsWith('pr-') 
+        ? hostname.split('.')[0] 
+        : hostname.startsWith('staging') 
+          ? 'staging'
+          : '';
+      
+      // Construct the appropriate WebSocket URL
+      const wsHostname = envPrefix 
+        ? `webrtc-${envPrefix}.demo.tafu.casa`
+        : 'webrtc.tafu.casa';
+      
+      return `${protocol}://${wsHostname}`;
+    }
   };
 
   const setVideoQuality = async (quality) => {
