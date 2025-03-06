@@ -84,6 +84,22 @@ jobs:
           GH_PAT: ${{ secrets.GH_PAT }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
+          # First, get all comments and delete old deployment comments
+          COMMENTS_URL="https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments"
+          
+          # Get all comments
+          COMMENTS=$(curl -s \
+            -H "Authorization: token $GH_PAT" \
+            $COMMENTS_URL)
+          
+          # Find and delete old deployment comments
+          echo "$COMMENTS" | jq -r '.[] | select(.body | startswith("🚀 Demo environment")) | .id' | while read -r comment_id; do
+            curl -X DELETE \
+              -H "Authorization: token $GH_PAT" \
+              "${COMMENTS_URL}/${comment_id}"
+          done
+          
+          # Post new deployment comment
           COMMENT="🚀 Demo environment deployed!\n\n"
           COMMENT+="- Demo site: https://pr-${PR_NUMBER}.demo.tafu.casa\n"
           
