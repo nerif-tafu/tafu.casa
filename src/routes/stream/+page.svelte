@@ -52,8 +52,8 @@
 
   const getServerUrl = () => {
     const hostname = window.location.hostname;
-    const useSSL = import.meta.env.VITE_USE_SSL === 'true';
-    const protocol = useSSL ? 'wss' : 'ws';  // Use wss:// for SSL
+    // Always use WSS in production/staging/demo environments, WS only in development
+    const protocol = hostname === 'localhost' ? 'ws' : 'wss';
     const port = '3001';
     
     return `${protocol}://${hostname}:${port}`;
