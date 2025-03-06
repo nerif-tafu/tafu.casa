@@ -29,6 +29,12 @@ let broadcaster;
 let watchers = new Set();
 
 io.on('connection', socket => {
+  console.log('New connection attempt:', {
+    id: socket.id,
+    headers: socket.handshake.headers,
+    address: socket.handshake.address
+  });
+
   // When a broadcaster connects
   socket.on('broadcaster', () => {
     console.log('Broadcaster connected:', socket.id);

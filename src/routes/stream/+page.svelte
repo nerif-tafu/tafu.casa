@@ -52,25 +52,26 @@
 
   const getServerUrl = () => {
     const hostname = window.location.hostname;
-    // Always use WSS in production/staging/demo environments, WS only in development
     const protocol = hostname === 'localhost' ? 'ws' : 'wss';
-    // Use the webrtc subdomain for WebSocket connections in production
+    console.log('Hostname:', hostname);
+    console.log('Protocol:', protocol);
+    
     if (hostname === 'localhost') {
       return `${protocol}://${hostname}:3001`;
     } else {
-      // Extract the environment prefix (pr-XX, staging, or none for prod)
       const envPrefix = hostname.startsWith('pr-') 
         ? hostname.split('.')[0] 
         : hostname.startsWith('staging') 
           ? 'staging'
           : '';
       
-      // Construct the appropriate WebSocket URL
       const wsHostname = envPrefix 
         ? `webrtc-${envPrefix}.demo.tafu.casa`
         : 'webrtc.tafu.casa';
       
-      return `${protocol}://${wsHostname}`;
+      const url = `${protocol}://${wsHostname}`;
+      console.log('WebSocket URL:', url);
+      return url;
     }
   };
 
@@ -101,11 +102,14 @@
   };
 
   const connectSocket = () => {
+    const url = getServerUrl();
+    console.log('Connecting to socket:', url);
     socket = io(getServerUrl(), {
       transports: ['websocket'],
-      secure: import.meta.env.VITE_USE_SSL === 'true',
+      path: '/socket.io/',
+      secure: true,
       reconnection: true,
-      reconnectionAttempts: maxReconnectAttempts,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000
     });
