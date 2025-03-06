@@ -87,19 +87,18 @@ jobs:
           # Install jq
           apt-get update && apt-get install -y jq
           
-          # First, get all comments and delete old deployment comments
-          COMMENTS_URL="https://api.github.com/repos/${{ github.repository }}/issues/${PR_NUMBER}/comments"
-          
-          # Get all comments
+          # Get all comments for this PR
           COMMENTS=$(curl -s \
             -H "Authorization: token $GH_PAT" \
-            $COMMENTS_URL)
+            -H "Accept: application/vnd.github.v3+json" \
+            $URL)
           
           # Find and delete old deployment comments
-          echo "$COMMENTS" | jq -r '.[] | select(.body | startswith("🚀 Demo environment")) | .id' | while read -r comment_id; do
+          echo "$COMMENTS" | jq -r '.[] | select(.body | startswith("🚀 Demo environment")) | .url' | while read -r comment_url; do
             curl -X DELETE \
               -H "Authorization: token $GH_PAT" \
-              "${COMMENTS_URL}/${comment_id}"
+              -H "Accept: application/vnd.github.v3+json" \
+              "$comment_url"
           done
           
           # Post new deployment comment
@@ -111,6 +110,7 @@ jobs:
             $URL \
             -H "Content-Type: application/json" \
             -H "Authorization: token $GH_PAT" \
+            -H "Accept: application/vnd.github.v3+json" \
             --data "{\"body\":\"$COMMENT\"}"
 
       # Comment when merged to staging
