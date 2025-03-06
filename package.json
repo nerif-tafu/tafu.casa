@@ -3,16 +3,10 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "preview": "vite preview",
-    "dev:nossl": "docker compose -f docker/dev/docker-compose.yml up --build",
-    "dev:ssl": "node docker/dev/setup/setup-dev.js && docker compose -f docker/dev/docker-compose.yml -f docker/dev/docker-compose.ssl.yml up --build",
-    "deploy:main": "docker compose -f docker/prod/docker-compose.yml up -d",
-    "deploy:staging": "docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.staging.yml up -d",
-    "deploy:pr": "PR_NUMBER=$1 docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.pr.yml up -d",
-    "down": "docker compose -f docker/dev/docker-compose.yml down",
-    "down:prod": "docker compose -f docker/prod/docker-compose.yml down"
+    "setup:dev": "cd docker/development/certificates && node install_ss_certificate.js",
+    "dev:traefik": "docker-compose -f docker/development/docker-compose.yml up",
+    "dev:backend": "node server/server.js",
+    "dev:frontend": "vite dev --host --port 9000"
   },
   "type": "module",
   "dependencies": {
@@ -21,8 +15,10 @@
     "@sveltejs/kit": "^2.9.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.1",
     "autoprefixer": "^10.4.20",
+    "express": "^4.18.2",
     "mediasoup-client": "^3.7.18",
     "postcss": "^8.4.49",
+    "socket.io": "^4.7.4",
     "socket.io-client": "^4.7.4",
     "svelte": "^5.8.0",
     "tailwindcss": "^3.4.16",

@@ -20,8 +20,8 @@ export default defineConfig(({ mode }) => {
 	if (process.env.USE_SSL === 'true') {
 		try {
 			config.server.https = {
-				key: fs.readFileSync(path.resolve('./certs/private.key')),
-				cert: fs.readFileSync(path.resolve('./certs/certificate.crt'))
+				key: fs.readFileSync(path.resolve('./docker/dev/setup/certs/private.key')),
+				cert: fs.readFileSync(path.resolve('./docker/dev/setup/certs/certificate.crt'))
 			};
 		} catch (error) {
 			console.warn('SSL certificates not found, falling back to HTTP');

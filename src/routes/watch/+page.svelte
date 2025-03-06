@@ -101,27 +101,7 @@
   };
 
   const getServerUrl = () => {
-    const hostname = window.location.hostname;
-    // Always use wss when going through nginx on 443
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    console.log('Hostname:', hostname);
-    console.log('Protocol:', protocol);
-    
-    if (hostname === 'localhost') {
-      return `${protocol}://${hostname}${protocol === 'wss' ? ':443' : ':9001'}`;
-    } else {
-      const envPrefix = hostname.startsWith('pr-') 
-        ? hostname.split('.')[0] 
-        : hostname.startsWith('staging') 
-          ? 'staging'
-          : '';
-      
-      const wsHostname = envPrefix 
-        ? `webrtc-${envPrefix}.demo.tafu.casa`
-        : 'webrtc.tafu.casa';
-      
-      return `${protocol}://${wsHostname}`;
-    }
+    return `wss://${window.location.host}`;
   };
 
   const connectToStream = () => {

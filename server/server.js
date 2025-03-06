@@ -1,23 +1,13 @@
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { createServer as createHttpsServer } from 'https';
-import fs from 'fs';
 
 const app = express();
-const useSSL = process.env.USE_SSL === 'true';
-
-// Create HTTP/HTTPS server
-const server = useSSL 
-  ? createHttpsServer({
-      key: fs.readFileSync('/app/certs/private.key'),
-      cert: fs.readFileSync('/app/certs/certificate.crt')
-    })
-  : createServer();
+const server = createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "*",  // Allow all origins in development
     methods: ["GET", "POST"]
   },
   path: '/socket.io/',
@@ -108,16 +98,11 @@ io.on('connection', socket => {
   });
 });
 
-const startServer = async () => {
-  try {
-    const port = process.env.PORT || 9000;
-    server.listen(port, '0.0.0.0', () => {
-      console.log(`Server listening on ${useSSL ? 'https' : 'http'}://0.0.0.0:${port}`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  }
-};
+app.get('/api/health', (req, res) => {
+  res.status(200).send('OK');
+});
 
-startServer(); 
+const port = process.env.PORT || 9000;
+server.listen(port, '0.0.0.0', () => {
+  console.log(`Server running on port ${port}`);
+}); 
