@@ -29,7 +29,7 @@ services:
       - "traefik.http.services.frontend.loadbalancer.server.port=9000"
     volumes:
       - ../../:/app
-      - node_modules:/app/node_modules
+      - /app/node_modules  # Anonymous volume to prevent host mount
     environment:
       - NODE_ENV=development
       - PORT=9000
@@ -46,10 +46,6 @@ services:
       - "traefik.http.services.backend.loadbalancer.server.port=9000"
     volumes:
       - ../../:/app
-      - node_modules:/app/node_modules
     environment:
       - NODE_ENV=development
-      - PORT=9000
-
-volumes:
-  node_modules: 
+      - PORT=9000 
