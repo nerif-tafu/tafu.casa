@@ -18,6 +18,10 @@ export default defineConfig(({ mode }) => {
 					target: 'ws://backend:9000',
 					ws: true
 				}
+			},
+			cors: true,
+			headers: {
+				'Access-Control-Allow-Origin': '*'
 			}
 		},
 		preview: {
@@ -29,7 +33,15 @@ export default defineConfig(({ mode }) => {
 			exclude: ['@sveltejs/kit']
 		},
 		fs: {
-			strict: false
+			strict: false,
+			allow: ['.']
+		},
+		server: {
+			host: true,
+			cors: true,
+			headers: {
+				'Access-Control-Allow-Origin': '*'
+			}
 		}
 	};
 
