@@ -22,7 +22,14 @@ export default defineConfig(({ mode }) => {
 			cors: true,
 			headers: {
 				'Access-Control-Allow-Origin': '*'
-			}
+			},
+			host: '0.0.0.0',
+			allowedHosts: [
+				'localhost',
+				'.tafu.casa',
+				'staging.tafu.casa',
+				'*.demo.tafu.casa'
+			]
 		},
 		preview: {
 			host: true,
@@ -35,13 +42,6 @@ export default defineConfig(({ mode }) => {
 		fs: {
 			strict: false,
 			allow: ['.']
-		},
-		server: {
-			host: true,
-			cors: true,
-			headers: {
-				'Access-Control-Allow-Origin': '*'
-			}
 		}
 	};
 
