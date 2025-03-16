@@ -23,7 +23,7 @@ services:
       dockerfile: docker/development/frontend.Dockerfile
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`localhost`)"
+      - "traefik.http.routers.frontend.rule=HostRegexp(`{host:.+}`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
       - "traefik.http.services.frontend.loadbalancer.server.port=9000"
@@ -40,7 +40,7 @@ services:
       dockerfile: docker/development/backend.Dockerfile
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`localhost`) && PathPrefix(`/socket.io`)"
+      - "traefik.http.routers.backend.rule=HostRegexp(`{host:.+}`) && PathPrefix(`/socket.io`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.services.backend.loadbalancer.server.port=9000"
