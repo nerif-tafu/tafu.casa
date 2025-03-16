@@ -1,0 +1,118 @@
+name: PR Demo Environment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches-ignore: [staging]  # Skip staging PRs since they use staging environment
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, demo]  # Assuming we have demo runners
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Generate environment variables
+      id: env
+      run: |
+        echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+        echo "DOMAIN=pr${{ github.event.pull_request.number }}.demo.tafu.casa" >> $GITHUB_ENV
+
+    - name: Create docker-compose override
+      run: |
+        cat > docker/staging/docker-compose.demo.yml << EOF
+        services:
+          frontend:
+            labels:
+              - "traefik.enable=true"
+              - "traefik.http.routers.pr${{ env.PR_NUMBER }}-frontend.rule=Host(\`${{ env.DOMAIN }}\`)"
+              - "traefik.http.routers.pr${{ env.PR_NUMBER }}-frontend.entrypoints=websecure"
+              - "traefik.http.routers.pr${{ env.PR_NUMBER }}-frontend.tls=true"
+              - "traefik.http.services.pr${{ env.PR_NUMBER }}-frontend.loadbalancer.server.port=9000"
+            environment:
+              - VIRTUAL_HOST=${{ env.DOMAIN }}
+              - PR_NUMBER=${{ env.PR_NUMBER }}
+
+          backend:
+            labels:
+              - "traefik.enable=true"
+              - "traefik.http.routers.pr${{ env.PR_NUMBER }}-backend.rule=Host(\`${{ env.DOMAIN }}\`) && PathPrefix(\`/socket.io\`)"
+              - "traefik.http.routers.pr${{ env.PR_NUMBER }}-backend.entrypoints=websecure"
+              - "traefik.http.routers.pr${{ env.PR_NUMBER }}-backend.tls=true"
+              - "traefik.http.services.pr${{ env.PR_NUMBER }}-backend.loadbalancer.server.port=9000"
+            environment:
+              - VIRTUAL_HOST=${{ env.DOMAIN }}
+              - PR_NUMBER=${{ env.PR_NUMBER }}
+
+        networks:
+          default:
+            name: traefik-network
+            external: true
+        EOF
+
+    - name: Build and start containers
+      run: |
+        cd docker/staging
+        docker compose -f docker-compose.yml -f docker-compose.demo.yml \
+          -p "pr-${{ env.PR_NUMBER }}" \
+          down --remove-orphans --volumes
+        docker compose -f docker-compose.yml -f docker-compose.demo.yml \
+          -p "pr-${{ env.PR_NUMBER }}" \
+          build --no-cache
+        docker compose -f docker-compose.yml -f docker-compose.demo.yml \
+          -p "pr-${{ env.PR_NUMBER }}" \
+          up -d
+
+    - name: Wait for services
+      run: |
+        echo "Waiting for services to be ready..."
+        sleep 10
+
+    - name: Health check
+      run: |
+        response=$(curl -s -o /dev/null -w "%{http_code}" https://${{ env.DOMAIN }}/api/health)
+        if [ "$response" != "200" ]; then
+          echo "Health check failed with status: $response"
+          exit 1
+        fi
+        echo "Health check passed"
+
+    - name: Comment PR with environment details
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const domain = 'pr${{ github.event.pull_request.number }}.demo.tafu.casa';
+          const prNumber = ${{ github.event.pull_request.number }};
+          
+          const comment = `🚀 Demo environment deployed!
+          
+          Your preview environment is ready at:
+          https://${domain}
+          
+          Environment ID: PR-${prNumber}`;
+          
+          github.rest.issues.createComment({
+            issue_number: prNumber,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+    - name: Print logs on failure
+      if: failure()
+      run: |
+        cd docker/staging
+        docker compose -f docker-compose.yml -f docker-compose.demo.yml \
+          -p "pr-${{ env.PR_NUMBER }}" logs
+
+    - name: Cleanup on failure
+      if: failure()
+      run: |
+        cd docker/staging
+        docker compose -f docker-compose.yml -f docker-compose.demo.yml \
+          -p "pr-${{ env.PR_NUMBER }}" down --volumes 

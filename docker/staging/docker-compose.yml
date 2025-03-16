@@ -1,0 +1,22 @@
+name: tafu-casa
+
+services:
+  frontend:
+    build:
+      context: ../..
+      dockerfile: docker/staging/frontend.Dockerfile
+    ports:
+      - "9000:9000"
+    environment:
+      - NODE_ENV=production
+      - PORT=9000
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: docker/staging/backend.Dockerfile
+    ports:
+      - "9001:9000"  # Map to different host port to avoid conflict
+    environment:
+      - NODE_ENV=production
+      - PORT=9000 

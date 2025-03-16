@@ -138,3 +138,5 @@ ideas.txt
 
 *.crt
 *.key
+
+data/acme.json

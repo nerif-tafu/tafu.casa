@@ -6,7 +6,11 @@
     "setup:dev": "cd docker/development/certificates && node install_ss_certificate.js",
     "dev:traefik": "docker-compose -f docker/development/docker-compose.yml up",
     "dev:backend": "node server/server.js",
-    "dev:frontend": "vite dev --host --port 9000"
+    "dev:frontend": "vite dev --host --port 9000",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:backend": "echo 'No build needed for backend'",
+    "build:frontend": "vite build"
   },
   "type": "module",
   "dependencies": {
