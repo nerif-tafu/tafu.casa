@@ -1,4 +1,4 @@
-name: tafu-casa
+version: "3.8"
 
 services:
   traefik:
