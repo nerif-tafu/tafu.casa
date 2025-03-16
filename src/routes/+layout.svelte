@@ -21,6 +21,9 @@
   // Track if we're handling a navigation
   let isHandlingNavigation = false;
 
+  // Add this at the top of your script
+  $: currentPath = $page?.url?.pathname?.slice(1) || '';
+
   function initCards() {
     const initialCards = getInitialCards();
     visitedCards.set(initialCards);

@@ -37,6 +37,7 @@
   <!-- Hidden link - no hover effects or visual indicators -->
   <span
     role="button"
+    tabindex="0"
     class="inline-block {className}"
     class:text-cursor={textLink}
     class:default-cursor={!textLink}

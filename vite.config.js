@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
 	const config = {
 		plugins: [sveltekit()],
 		server: {
-			host: true,
+			host: '0.0.0.0',
 			port: 9000,
 			strictPort: true,
 			hmr: {
@@ -23,7 +23,6 @@ export default defineConfig(({ mode }) => {
 			headers: {
 				'Access-Control-Allow-Origin': '*'
 			},
-			host: '0.0.0.0',
 			allowedHosts: [
 				'localhost',
 				'.tafu.casa',
@@ -37,7 +36,11 @@ export default defineConfig(({ mode }) => {
 			strictPort: true
 		},
 		optimizeDeps: {
-			exclude: ['@sveltejs/kit']
+			exclude: ['@sveltejs/kit'],
+			exclude: [
+				'@sveltejs/kit',
+				'clsx'
+			]
 		},
 		fs: {
 			strict: false,
