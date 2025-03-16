@@ -21,6 +21,8 @@ RUN mkdir -p /docker-node_modules && \
 EXPOSE 9000
 ENV PORT=9000
 ENV NODE_ENV=development
+ENV ORIGIN=https://localhost:443
 
 # Script to copy node_modules and start the app
-CMD cp -r /docker-node_modules/* /app/node_modules/ && npm run dev:frontend 
+CMD cp -r /docker-node_modules/* /app/node_modules/ && \
+    VITE_ALLOW_ALL_HOSTS=true npm run dev:frontend 

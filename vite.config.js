@@ -7,12 +7,29 @@ export default defineConfig(({ mode }) => {
 	const config = {
 		plugins: [sveltekit()],
 		server: {
-			host: '0.0.0.0',
+			host: true,
 			port: 9000,
 			strictPort: true,
-			watch: {
-				usePolling: true
+			hmr: {
+				clientPort: 443
+			},
+			proxy: {
+				'/socket.io': {
+					target: 'ws://backend:9000',
+					ws: true
+				}
 			}
+		},
+		preview: {
+			host: true,
+			port: 9000,
+			strictPort: true
+		},
+		optimizeDeps: {
+			exclude: ['@sveltejs/kit']
+		},
+		fs: {
+			strict: false
 		}
 	};
 

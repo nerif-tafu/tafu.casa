@@ -33,6 +33,8 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=9000
+      - VITE_ALLOW_ALL_HOSTS=true
+      - ORIGIN=https://localhost:443
 
   backend:
     build:
