@@ -136,5 +136,7 @@ build/
 
 ideas.txt
 
-# Development certificates
-docker/dev/setup/certs/
+*.crt
+*.key
+
+data/acme.json

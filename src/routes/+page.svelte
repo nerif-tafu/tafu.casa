@@ -1,163 +1,126 @@
-<script>
-  import { fade } from 'svelte/transition';
-  import { goto } from '$app/navigation';
-  import { handleNavigation } from '$lib/stores/navigation';
-  import Link from '$lib/components/Link.svelte';
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { ascii40, ascii60, ascii100 } from '$lib/ascii';
 
-  function navigateToProjects() {
-    // Try card animation first, fallback to normal navigation
-    if (!handleNavigation('projects')) {
-      goto('/projects');
+  /** Use initial viewport width from inline script so art size is correct on first paint (no resize) */
+  let width =
+    typeof window !== 'undefined'
+      ? (window as typeof window & { __INITIAL_VIEWPORT_WIDTH__?: number }).__INITIAL_VIEWPORT_WIDTH__ ?? 0
+      : 0;
+  /** On single-column (mobile): overlay hides after 1s to reveal links */
+  let hideMobileAscii = false;
+  let mobileTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Fade-in for desktop layout (set true after mount) */
+  let contentFadedIn = false;
+
+  function updateWidth() {
+    width = typeof window !== 'undefined' ? window.innerWidth : 0;
+    if (mobileTimer) {
+      clearTimeout(mobileTimer);
+      mobileTimer = undefined;
+    }
+    if (width < 768) {
+      hideMobileAscii = false;
+      mobileTimer = setTimeout(() => {
+        hideMobileAscii = true;
+        mobileTimer = undefined;
+      }, 1000);
+    } else {
+      hideMobileAscii = false;
     }
   }
 
-  function navigateToAbout() {
-    if (!handleNavigation('about')) {
-      goto('/about');
+  onMount(() => {
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    if (width >= 768) {
+      requestAnimationFrame(() => {
+        contentFadedIn = true;
+      });
+    } else {
+      contentFadedIn = true;
     }
-  }
+    return () => {
+      if (mobileTimer) clearTimeout(mobileTimer);
+      window.removeEventListener('resize', updateWidth);
+    };
+  });
+
+  $: art =
+    width >= 1024
+      ? ascii100
+      : width >= 640
+        ? ascii60
+        : ascii40;
 </script>
 
-<main class="container mx-auto px-4 py-16">
-  <div class="max-w-2xl mx-auto space-y-6">
-    <hr class="border-gray-200/20">
-    
-    <section>
-      <h1 class="text-6xl font-bold hover-glow">
-        <span class="magical-text">Test Hello</span> <span class="hover-shimmer">there</span><span class="hover-pulse">.</span>
-      </h1>
-    </section>
-    
-    <hr class="border-gray-200/20">
-    
-    <section class="space-y-4">
-      <p class="text-2xl text-white font-semibold">
-        Welcome to <span class="magical-text hover-float">tafu.casa</span>, please explore and see what 
-        <span class="hover-shimmer">cards</span> you can <span class="hover-pulse">summon</span>.
-      </p>
-      <p class="text-1xl text-white font-semibold">
-        This site is a collection of ideas and
-        <Link to="projects" hidden>
-          <span class="magical-text hover-float">projects</span>
-        </Link> that I've been/am working on.
-        Don't expect polish or well thought out ideas, this is a place for me to turn the 
-        <Link to="about">
-          <span class="magical-text hover-float">ephemeral</span>
-        </Link> into <span class="hover-shimmer">permanent</span>.
-      </p>
-      <p class="text-1xl text-white font-semibold">
-        I've always loved finding <span class="hover-pulse">hidden links</span> and <span class="magical-text">unlisted pages</span> back in the early days of the internet, 
-        finding these backpages you were never meant to visit was a lot of fun. I wanted to try and emulate 
-        what it was like to <span class="hover-shimmer">bumble around</span> a site and click around. Stay around long enough and (maybe) you'll 
-        find some extra <Link to="image/pup" hidden><span class="hover-float">sneaky links</span></Link>.
-      </p>
-      <p class="text-sm text-gray italic mt-2 fade-in-out">
-        PS - yes i know you can just look at the source and find them, but 
-        don't be <span class="hover-pulse">lame</span>.
-      </p>
-    </section>
-    
-    <hr class="border-gray-200/20">
+<svelte:head>
+  <title>tafu.casa</title>
+  <meta name="description" content="Minimal text homepage for tafu.casa" />
+</svelte:head>
+
+<main class="min-h-screen flex items-center justify-center px-4 py-8 relative">
+  <!-- Mobile: full-screen ASCII overlay, fades out after 1s to reveal links -->
+  {#if width < 768}
+    <div
+      class="fixed inset-0 z-10 bg-gray-950 flex items-center justify-center transition-opacity duration-500 {hideMobileAscii
+        ? 'opacity-0 pointer-events-none'
+        : ''}"
+      aria-hidden={hideMobileAscii}
+    >
+      <pre
+        class="inline-block text-[10px] leading-none text-gray-200 whitespace-pre text-left"
+      >{art}</pre>
+    </div>
+  {/if}
+
+  <div
+    class="w-full max-w-6xl grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-8 md:gap-12 items-center transition-opacity duration-500 ease-out {width >= 768 && !contentFadedIn
+      ? 'opacity-0'
+      : 'opacity-100'}"
+  >
+    <div class="flex flex-col space-y-8 text-left">
+      <section class="space-y-8 text-sm text-gray-300">
+        <div class="space-y-3">
+          <p class="tracking-wide uppercase text-gray-400">links</p>
+          <ul class="space-y-1">
+            <li class="whitespace-nowrap">- <a
+                href="https://pipes.tafu.casa/"
+                class="underline decoration-gray-500 hover:text-gray-100 hover:decoration-gray-200"
+                >pipes.tafu.casa</a
+              ></li>
+            <li class="whitespace-nowrap">- <a
+                href="https://spermket.tafu.casa/shop/undercut"
+                class="underline decoration-gray-500 hover:text-gray-100 hover:decoration-gray-200"
+                >spermket.tafu.casa</a
+              ></li>
+          </ul>
+        </div>
+        <div class="space-y-3">
+          <p class="tracking-wide uppercase text-gray-400">profiles</p>
+          <ul class="space-y-1">
+            <li class="whitespace-nowrap">- <a
+                href="https://github.com/nerif-tafu?tab=repositories"
+                class="underline decoration-gray-500 hover:text-gray-100 hover:decoration-gray-200"
+                >GH</a
+              ></li>
+            <li class="whitespace-nowrap">- <a
+                href="https://discordapp.com/users/107411599001710592"
+                class="underline decoration-gray-500 hover:text-gray-100 hover:decoration-gray-200"
+                >Discord</a
+              ></li>
+          </ul>
+        </div>
+      </section>
+    </div>
+    <!-- Desktop only: ASCII in second column -->
+    {#if width >= 768}
+      <section class="overflow-x-auto flex items-start justify-center">
+        <pre
+          class="inline-block text-[10px] leading-none text-gray-200 whitespace-pre text-left"
+        >{art}</pre>
+      </section>
+    {/if}
   </div>
 </main>
 
-<style>
-  :global(html) {
-    scroll-behavior: smooth;
-  }
-
-  .hover-glow {
-    transition: text-shadow 0.3s ease;
-  }
-
-  .hover-glow:hover {
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.8),
-                 0 0 20px rgba(255, 255, 255, 0.4),
-                 0 0 30px rgba(255, 255, 255, 0.2);
-  }
-
-  .hover-shimmer {
-    position: relative;
-    display: inline-block;
-    cursor: pointer;
-  }
-
-  .hover-shimmer:hover {
-    background: linear-gradient(
-      90deg,
-      theme('colors.primary') 0%,
-      theme('colors.secondary') 50%,
-      theme('colors.primary') 100%
-    );
-    background-size: 200% auto;
-    color: transparent;
-    -webkit-background-clip: text;
-    background-clip: text;
-    animation: shimmer 2s linear infinite;
-  }
-
-  .hover-pulse {
-    display: inline-block;
-    transition: transform 0.3s ease;
-  }
-
-  .hover-pulse:hover {
-    animation: pulse 1s infinite;
-  }
-
-  .hover-float {
-    display: inline-block;
-    transition: transform 0.3s ease;
-  }
-
-  .hover-float:hover {
-    transform: translateY(-5px);
-  }
-
-  .magical-text {
-    background: linear-gradient(
-      45deg,
-      rgba(250, 210, 0, 0.95),
-      rgba(115, 115, 200, 0.95),
-      rgba(155, 200, 115, 0.95)
-    );
-    background-size: 200% 200%;
-    color: transparent;
-    -webkit-background-clip: text;
-    background-clip: text;
-    transition: all 0.3s ease;
-  }
-
-  .magical-text:hover {
-    animation: gradient 3s ease infinite;
-  }
-
-  @keyframes shimmer {
-    to {
-      background-position: 200% center;
-    }
-  }
-
-  @keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-  }
-
-  @keyframes gradient {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-
-  .fade-in-out {
-    animation: fadeInOut 4s ease-in-out infinite;
-    opacity: 0.6;
-  }
-
-  @keyframes fadeInOut {
-    0% { opacity: 0.4; }
-    50% { opacity: 0.8; }
-    100% { opacity: 0.4; }
-  }
-</style> 

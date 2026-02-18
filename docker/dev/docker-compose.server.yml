@@ -1,7 +1,0 @@
-services:
-  web:
-    profiles: ["disabled"]
-  webrtc:
-    # Only run webrtc and nginx
-  nginx:
-    # Only run webrtc and nginx 

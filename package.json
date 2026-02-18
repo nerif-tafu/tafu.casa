@@ -1,32 +1,28 @@
 {
-  "name": "tafu.casa",
-  "version": "0.0.1",
+  "name": "tafu-casa",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "dev:nossl": "docker compose -f docker/dev/docker-compose.yml up --build",
-    "dev:ssl": "node docker/dev/setup/setup-dev.js && docker compose -f docker/dev/docker-compose.yml -f docker/dev/docker-compose.ssl.yml up --build",
-    "deploy:main": "docker compose -f docker/prod/docker-compose.yml up -d",
-    "deploy:staging": "docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.staging.yml up -d",
-    "deploy:pr": "PR_NUMBER=$1 docker compose -f docker/prod/docker-compose.yml -f docker/prod/docker-compose.pr.yml up -d",
-    "down": "docker compose -f docker/dev/docker-compose.yml down",
-    "down:prod": "docker compose -f docker/prod/docker-compose.yml down"
+    "check": "svelte-kit check",
+    "lint": "eslint .",
+    "test": "vitest"
   },
   "type": "module",
-  "dependencies": {
-    "@sveltejs/adapter-auto": "^3.3.1",
-    "@sveltejs/adapter-node": "^5.2.9",
-    "@sveltejs/kit": "^2.9.0",
-    "@sveltejs/vite-plugin-svelte": "^5.0.1",
+  "devDependencies": {
+    "@sveltejs/adapter-node": "^5.0.0",
+    "@sveltejs/kit": "^2.10.0",
     "autoprefixer": "^10.4.20",
-    "mediasoup-client": "^3.7.18",
+    "eslint": "^9.0.0",
+    "eslint-plugin-svelte": "^2.46.0",
     "postcss": "^8.4.49",
-    "socket.io-client": "^4.7.4",
-    "svelte": "^5.8.0",
-    "tailwindcss": "^3.4.16",
-    "video.js": "^8.21.0",
-    "vite": "^6.0.3"
-  }
+    "svelte": "^5.0.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^2.1.0"
+  },
+  "dependencies": {}
 }
