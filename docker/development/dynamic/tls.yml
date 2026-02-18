@@ -1,9 +1,0 @@
-tls:
-  certificates:
-    - certFile: "/etc/certs/localhost.crt"
-      keyFile: "/etc/certs/localhost.key"
-  stores:
-    default:
-      defaultCertificate:
-        certFile: "/etc/certs/localhost.crt"
-        keyFile: "/etc/certs/localhost.key" 
