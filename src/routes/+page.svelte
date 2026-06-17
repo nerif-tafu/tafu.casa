@@ -104,6 +104,11 @@
                 class="underline decoration-gray-500 hover:text-gray-100 hover:decoration-gray-200"
                 >skate.tafu.casa</a
               ></li>
+            <li class="whitespace-nowrap">- <a
+                href="https://tandem.tafu.casa/"
+                class="underline decoration-gray-500 hover:text-gray-100 hover:decoration-gray-200"
+                >tandem.tafu.casa</a
+              ></li>
           </ul>
         </div>
         <div class="space-y-3">
