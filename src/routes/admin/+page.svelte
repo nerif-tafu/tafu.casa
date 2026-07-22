@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { enhance } from '$app/forms';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
@@ -54,6 +55,42 @@
   }
 
   let addingSite = false;
+
+  /** Local copy of the sites list so drag reordering is instant; re-syncs on data reloads */
+  let sites: PageData['projects'] = [];
+  $: sites = [...data.projects];
+
+  /** Drag-to-reorder state: rows are only draggable while the handle is held */
+  let dragEnabledIndex: number | null = null;
+  let dragIndex: number | null = null;
+  let orderForm: HTMLFormElement;
+  let orderValue = '';
+
+  function handleDragStart(i: number, e: DragEvent) {
+    dragIndex = i;
+    e.dataTransfer?.setData('text/plain', String(i));
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function handleDragOver(i: number, e: DragEvent) {
+    e.preventDefault();
+    if (dragIndex === null || i === dragIndex) return;
+    const [moved] = sites.splice(dragIndex, 1);
+    sites.splice(i, 0, moved);
+    sites = sites;
+    dragIndex = i;
+  }
+
+  async function handleDragEnd() {
+    dragEnabledIndex = null;
+    if (dragIndex === null) return;
+    dragIndex = null;
+    const newOrder = sites.map((s) => s.id).join(',');
+    if (newOrder === data.projects.map((s) => s.id).join(',')) return;
+    orderValue = newOrder;
+    await tick();
+    orderForm.requestSubmit();
+  }
 
   const input =
     'w-full bg-[#242827] border border-[#4a4a4a] px-2 py-1 text-white placeholder-gray-500 focus:outline-none focus:border-white';
@@ -207,37 +244,61 @@
       {/if}
     {/if}
   {:else if tab === 'sites'}
-    <p class="opacity-70 mb-4">The list of links shown on the homepage.</p>
+    <p class="opacity-70 mb-4">
+      The list of links shown on the homepage. Drag the handle to change the order they appear in.
+    </p>
 
-    <div class="space-y-3">
-      {#each data.projects as site (site.id)}
-        <form
-          method="POST"
-          action="?/updateSite"
-          use:enhance
-          class="grid grid-cols-1 md:grid-cols-[1fr_1.3fr_1.3fr_auto_auto] gap-2 items-start"
+    <div class="space-y-3" role="list">
+      {#each sites as site, i (site.id)}
+        <div
+          class="flex items-start gap-2 {dragIndex === i ? 'opacity-50' : ''}"
+          role="listitem"
+          draggable={dragEnabledIndex === i}
+          on:dragstart={(e) => handleDragStart(i, e)}
+          on:dragover={(e) => handleDragOver(i, e)}
+          on:drop|preventDefault
+          on:dragend={handleDragEnd}
         >
-          <input type="hidden" name="id" value={site.id} />
-          <input class={input} name="title" value={site.title} placeholder="Title" required />
-          <input class={input} name="url" value={site.url} placeholder="URL (optional)" />
-          <input
-            class={input}
-            name="description"
-            value={site.description}
-            placeholder="Description (optional)"
-          />
-          <button class={btnGhost} type="submit">Save</button>
-          <button
-            class={btnDanger}
-            type="submit"
-            formaction="?/deleteSite"
-            on:click={(e) => {
-              if (!window.confirm('Delete this entry?')) e.preventDefault();
-            }}>Delete</button
+          <!-- svelte-ignore a11y-no-static-element-interactions -->
+          <span
+            class="cursor-grab select-none px-1 py-1 opacity-50 hover:opacity-100"
+            title="Drag to reorder"
+            aria-hidden="true"
+            on:mousedown={() => (dragEnabledIndex = i)}
+            on:mouseup={() => (dragEnabledIndex = null)}>⠿</span
           >
-        </form>
+          <form
+            method="POST"
+            action="?/updateSite"
+            use:enhance
+            class="flex-1 grid grid-cols-1 md:grid-cols-[1fr_1.3fr_1.3fr_auto_auto] gap-2 items-start"
+          >
+            <input type="hidden" name="id" value={site.id} />
+            <input class={input} name="title" value={site.title} placeholder="Title" required />
+            <input class={input} name="url" value={site.url} placeholder="URL (optional)" />
+            <input
+              class={input}
+              name="description"
+              value={site.description}
+              placeholder="Description (optional)"
+            />
+            <button class={btnGhost} type="submit">Save</button>
+            <button
+              class={btnDanger}
+              type="submit"
+              formaction="?/deleteSite"
+              on:click={(e) => {
+                if (!window.confirm('Delete this entry?')) e.preventDefault();
+              }}>Delete</button
+            >
+          </form>
+        </div>
       {/each}
     </div>
+
+    <form method="POST" action="?/reorderSites" use:enhance bind:this={orderForm} class="hidden">
+      <input type="hidden" name="order" value={orderValue} />
+    </form>
 
     {#if addingSite}
       <form

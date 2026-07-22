@@ -83,6 +83,23 @@ export const actions: Actions = {
     await saveProjects(projects);
   },
 
+  reorderSites: async ({ request, cookies }) => {
+    if (!isAuthed(cookies)) return fail(401, { error: 'Not signed in' });
+    const form = await request.formData();
+    const order = String(form.get('order') ?? '')
+      .split(',')
+      .filter(Boolean);
+    const projects = await getProjects();
+    const byId = new Map(projects.map((p) => [p.id, p]));
+    const reordered = order.flatMap((id) => byId.get(id) ?? []);
+    // Keep any rows missing from the submitted order (e.g. added concurrently)
+    for (const p of projects) {
+      if (!reordered.includes(p)) reordered.push(p);
+    }
+    if (reordered.length !== projects.length) return fail(400, { error: 'Bad order' });
+    await saveProjects(reordered);
+  },
+
   deleteSite: async ({ request, cookies }) => {
     if (!isAuthed(cookies)) return fail(401, { error: 'Not signed in' });
     const form = await request.formData();
