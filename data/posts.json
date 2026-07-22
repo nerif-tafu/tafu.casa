@@ -1,0 +1,16 @@
+[
+  {
+    "id": "welcome",
+    "slug": "hello-world",
+    "title": "Hello worlddd",
+    "date": "2026-07-22",
+    "html": "<p>This is the first project writeup on tafu.casa. Edit or delete it from the admin page.</p>"
+  },
+  {
+    "id": "markup-demo",
+    "slug": "markup-demo",
+    "title": "Markup demo — everything the editor supports",
+    "date": "2026-07-22",
+    "html": "<p>This post demos every kind of markup the project editor supports. Open it in the admin editor to see how each block is authored.</p><h2>Heading (H2)</h2><p>A regular paragraph with <b>bold text</b>, <i>italic text</i>, and <a href=\"https://tafu.casa\">a link</a>. Formatting can be combined for <b><i>bold italics</i></b>.</p><h3>Subheading (H3)</h3><p>Subheadings break a section into smaller parts.</p><h2>Lists</h2><p>A bullet list:</p><ul><li>first item</li><li>second item</li><li>third item</li></ul><p>A numbered list:</p><ol><li>step one</li><li>step two</li><li>step three</li></ol><h2>Quote</h2><blockquote>Quotes get a border on the left and slightly dimmed text. Good for citing other people or highlighting a takeaway.</blockquote><h2>Code block</h2><pre>function hello() {\n  console.log(\"code blocks keep whitespace\");\n}</pre><h2>Photo</h2><p>Images scale to the content width:</p><img src=\"/media/demo-image.svg\" alt=\"Demo placeholder graphic\"><h2>Audio</h2><p>An embedded audio player (a generated 440 Hz test tone):</p><audio controls src=\"/media/demo-audio.wav\"></audio><h2>Video</h2><p>An embedded video player (external CC0 sample from MDN):</p><video controls src=\"https://mdn.github.io/shared-assets/videos/flower.mp4\"></video><p>That's the whole toolbox.</p>"
+  }
+]

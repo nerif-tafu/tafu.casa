@@ -18,6 +18,11 @@ RUN npm run build
 FROM node:22-alpine
 
 ENV NODE_ENV=production
+# Persistent site data (JSON stores + uploads) — mount a volume here
+ENV DATA_DIR=/data
+# Allow large media uploads and backup restores through adapter-node
+ENV BODY_SIZE_LIMIT=500M
+VOLUME ["/data"]
 WORKDIR /app
 
 COPY --from=build /app/package.json ./

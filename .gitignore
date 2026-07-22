@@ -140,3 +140,12 @@ ideas.txt
 *.key
 
 data/acme.json
+
+# Runtime site data (seed JSON + demo media stay committed)
+data/metrics.json
+data/uploads/*
+!data/uploads/demo-image.svg
+!data/uploads/demo-audio.wav
+
+# Local Claude Code config
+.claude/

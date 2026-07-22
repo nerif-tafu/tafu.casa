@@ -1,0 +1,38 @@
+[
+  {
+    "id": "pipes",
+    "title": "pipes.tafu.casa",
+    "url": "https://pipes.tafu.casa/",
+    "description": "Test description"
+  },
+  {
+    "id": "spermket",
+    "title": "spermket.tafu.casa",
+    "url": "https://spermket.tafu.casa/shop/undercut",
+    "description": ""
+  },
+  {
+    "id": "rustbreeder",
+    "title": "rustbreeder.tafu.casa",
+    "url": "https://rustbreeder.tafu.casa/",
+    "description": ""
+  },
+  {
+    "id": "skate",
+    "title": "skate.tafu.casa",
+    "url": "https://skate.tafu.casa/",
+    "description": ""
+  },
+  {
+    "id": "tandem",
+    "title": "tandem.tafu.casa",
+    "url": "https://tandem.tafu.casa/",
+    "description": ""
+  },
+  {
+    "id": "gridfinity",
+    "title": "gridfinity.tafu.casa",
+    "url": "https://gridfinity.tafu.casa/",
+    "description": ""
+  }
+]

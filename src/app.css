@@ -1,12 +1,4 @@
-@font-face {
-  font-family: 'Dogica';
-  src: url('https://db.onlinewebfonts.com/t/57d7ce13093381acee3d40c5a512c770.eot');
-  src: url('https://db.onlinewebfonts.com/t/57d7ce13093381acee3d40c5a512c770.eot?#iefix') format('embedded-opentype'),
-    url('https://db.onlinewebfonts.com/t/57d7ce13093381acee3d40c5a512c770.woff2') format('woff2'),
-    url('https://db.onlinewebfonts.com/t/57d7ce13093381acee3d40c5a512c770.woff') format('woff'),
-    url('https://db.onlinewebfonts.com/t/57d7ce13093381acee3d40c5a512c770.ttf') format('truetype'),
-    url('https://db.onlinewebfonts.com/t/57d7ce13093381acee3d40c5a512c770.svg#Dogica') format('svg');
-}
+@import url('https://fonts.googleapis.com/css2?family=Anonymous+Pro:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -18,7 +10,80 @@ body {
 }
 
 body {
-  @apply bg-gray-950 text-gray-100;
-  font-family: 'Dogica', monospace;
+  background-color: #242827;
+  color: #ffffff;
+  font-family: 'Anonymous Pro', monospace;
+  font-size: 16px;
 }
 
+/* Typography for WYSIWYG-authored content (project writeups + admin editor) */
+.rich-text h1,
+.rich-text h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 1rem 0 0.5rem;
+}
+
+.rich-text h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 1rem 0 0.5rem;
+}
+
+.rich-text p {
+  margin: 0.5rem 0;
+}
+
+.rich-text ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.rich-text ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.rich-text a {
+  text-decoration: underline;
+}
+
+.rich-text a:hover {
+  text-decoration: none;
+}
+
+.rich-text pre {
+  background-color: #242827;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.rich-text blockquote {
+  border-left: 3px solid #4a4a4a;
+  padding-left: 0.75rem;
+  margin: 0.5rem 0;
+  opacity: 0.9;
+}
+
+.rich-text hr {
+  border-color: #4a4a4a;
+  margin: 1rem 0;
+}
+
+.rich-text img,
+.rich-text video {
+  display: block;
+  max-width: 100%;
+  margin: 0.75rem 0;
+}
+
+.rich-text audio {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  margin: 0.75rem 0;
+}

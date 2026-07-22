@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="240" viewBox="0 0 640 240">
+  <rect width="640" height="240" fill="#242827"/>
+  <rect x="8" y="8" width="624" height="224" fill="none" stroke="#4a4a4a" stroke-width="2"/>
+  <text x="320" y="110" text-anchor="middle" fill="#ffffff" font-family="monospace" font-size="28">tafu.casa</text>
+  <text x="320" y="150" text-anchor="middle" fill="#778899" font-family="monospace" font-size="16">demo image (svg)</text>
+</svg>
