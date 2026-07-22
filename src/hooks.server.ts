@@ -1,5 +1,6 @@
 import type { Handle } from '@sveltejs/kit';
 import { recordVisit } from '$lib/server/metrics';
+import { safeClientAddress } from '$lib/server/client-ip';
 
 export const handle: Handle = async ({ event, resolve }) => {
   if (event.request.method === 'GET') {
@@ -15,13 +16,7 @@ export const handle: Handle = async ({ event, resolve }) => {
       !/\.[a-z0-9]+$/i.test(page);
 
     if (trackable) {
-      let ip = 'unknown';
-      try {
-        ip = event.getClientAddress();
-      } catch {
-        /* not available (e.g. prerender) */
-      }
-      void recordVisit(page, ip);
+      void recordVisit(page, safeClientAddress(() => event.getClientAddress()));
     }
   }
   return resolve(event);

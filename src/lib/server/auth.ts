@@ -18,6 +18,29 @@ const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
 const LOCKOUT_MS = 15 * 60 * 1000;
 const attempts = new Map<string, { count: number; first: number; lockedUntil: number }>();
 
+/**
+ * Global failure counter, independent of the per-IP one. The per-IP lockout is
+ * keyed on a client address derived from a proxy header, so it is only as
+ * trustworthy as the network path; this bounds total guess throughput even if
+ * an attacker can present a fresh address per request. Deliberately a delay
+ * rather than a lockout, so nobody can lock the owner out by spraying failures.
+ */
+const GLOBAL_FREE_ATTEMPTS = 10;
+const GLOBAL_MAX_DELAY_MS = 5000;
+let globalFailures = 0;
+let globalWindowStart = Date.now();
+
+function globalDelayMs(): number {
+  const now = Date.now();
+  if (now - globalWindowStart > ATTEMPT_WINDOW_MS) {
+    globalFailures = 0;
+    globalWindowStart = now;
+  }
+  const over = globalFailures - GLOBAL_FREE_ATTEMPTS;
+  if (over <= 0) return 0;
+  return Math.min(2 ** Math.min(over, 10) * 100, GLOBAL_MAX_DELAY_MS);
+}
+
 // Password comes from ADMIN_PASSWORD. In dev we fall back to "admin";
 // in production login is disabled until the env var is set.
 function adminPassword(): string | null {
@@ -44,6 +67,9 @@ export function loginAllowed(ip: string): { ok: boolean; retryAfterSec: number }
 
 export function recordLoginFailure(ip: string): void {
   const now = Date.now();
+  globalDelayMs(); // roll the window over before counting
+  globalFailures += 1;
+
   const entry = attempts.get(ip);
   if (!entry || now - entry.first > ATTEMPT_WINDOW_MS) {
     attempts.set(ip, { count: 1, first: now, lockedUntil: 0 });
@@ -53,6 +79,15 @@ export function recordLoginFailure(ip: string): void {
   if (entry.count >= MAX_ATTEMPTS) {
     entry.lockedUntil = now + LOCKOUT_MS;
   }
+}
+
+/**
+ * Delay applied to a rejected login. Only failures pay it, so a correct
+ * password is never slowed down, while sustained guessing gets progressively
+ * throttled regardless of what address the attempts appear to come from.
+ */
+export async function throttleFailedLogin(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, Math.max(500, globalDelayMs())));
 }
 
 export function clearLoginFailures(ip: string): void {

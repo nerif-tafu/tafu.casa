@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { MEDIA_TYPES, UPLOAD_DIR } from '$lib/server/media';
 import { parseTar } from '$lib/server/tar';
+import { safeClientAddress } from '$lib/server/client-ip';
 import {
   checkPassword,
   clearLoginFailures,
@@ -11,7 +12,8 @@ import {
   isAuthed,
   loginAllowed,
   recordLoginFailure,
-  setSession
+  setSession,
+  throttleFailedLogin
 } from '$lib/server/auth';
 import { getProjects, saveProjects } from '$lib/server/projects';
 import { getPosts, savePosts, uniqueSlug } from '$lib/server/posts';
@@ -30,7 +32,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 export const actions: Actions = {
   login: async ({ request, cookies, getClientAddress }) => {
-    const ip = getClientAddress();
+    const ip = safeClientAddress(getClientAddress);
     const gate = loginAllowed(ip);
     if (!gate.ok) {
       return fail(429, {
@@ -41,8 +43,7 @@ export const actions: Actions = {
     const password = String(form.get('password') ?? '');
     if (!checkPassword(password)) {
       recordLoginFailure(ip);
-      // Slow down brute-force attempts
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await throttleFailedLogin();
       return fail(401, { error: 'Wrong password' });
     }
     clearLoginFailures(ip);
