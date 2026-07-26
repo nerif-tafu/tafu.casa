@@ -107,6 +107,23 @@ export type ProcessedMedia = {
 };
 
 /**
+ * Strip SVG `<metadata>` blocks and HTML/XML comments.
+ * Replacements run until stable so nested markers (e.g. `<!<!---->-->`)
+ * cannot reintroduce `<!--` after a single pass (CodeQL js/incomplete-multi-character-sanitization).
+ */
+function stripSvgExtras(svg: string): string {
+  let prev = '';
+  let out = svg;
+  while (out !== prev) {
+    prev = out;
+    out = out
+      .replace(/<metadata\b[^>]*>[\s\S]*?<\/metadata>/gi, '')
+      .replace(/<!--[\s\S]*?-->/g, '');
+  }
+  return out;
+}
+
+/**
  * Strip embedded metadata from photos and videos.
  * Images: auto-orient + re-encode without EXIF/IPTC/XMP.
  * Videos: strip container metadata; if HDR, preserve original as sibling and
@@ -116,15 +133,7 @@ export async function processUploadedMedia(ext: string, data: Buffer): Promise<P
   const e = ext.toLowerCase();
 
   if (e === 'svg') {
-    return {
-      data: Buffer.from(
-        data
-          .toString('utf8')
-          .replace(/<metadata\b[^>]*>[\s\S]*?<\/metadata>/gi, '')
-          .replace(/<!--[\s\S]*?-->/g, ''),
-        'utf8'
-      )
-    };
+    return { data: Buffer.from(stripSvgExtras(data.toString('utf8')), 'utf8') };
   }
 
   if (IMAGE_EXTS.has(e)) {
