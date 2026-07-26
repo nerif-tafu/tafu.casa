@@ -1,8 +1,14 @@
 <script>
+  import { onMount } from 'svelte';
+  import { afterNavigate } from '$app/navigation';
   import '../app.css';
   import Icon from '$lib/components/Icon.svelte';
+  import { preferSdrOnFirefox } from '$lib/video';
 
   const year = new Date().getFullYear();
+
+  onMount(() => preferSdrOnFirefox());
+  afterNavigate(() => preferSdrOnFirefox());
 </script>
 
 <div class="min-h-screen flex flex-col items-center">

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { htmlToMarkdown, markdownToHtml } from '$lib/markdown';
+  import { videoEmbedHtml } from '$lib/video';
 
   /** Name of the hidden form field carrying the HTML */
   export let name = 'html';
@@ -8,12 +9,21 @@
   export let value = '';
 
   let mdTextarea: HTMLTextAreaElement | undefined;
+  let backdropEl: HTMLPreElement | undefined;
   let fileInput: HTMLInputElement;
   let current = value;
   let mdText = '';
   let mode: 'markdown' | 'preview' = 'markdown';
-  let uploading = false;
   let pendingKind: 'image' | 'audio' | 'video' = 'image';
+
+  /** Active uploads: token is the reserved `/media/<uuid>.<ext>` (or uploading: id) */
+  type UploadJob = { id: string; snippet: string; progress: number };
+  let uploads: UploadJob[] = [];
+
+  $: uploadProgress =
+    uploads.length === 0
+      ? null
+      : Math.round(uploads.reduce((s, u) => s + u.progress, 0) / uploads.length);
 
   onMount(() => {
     mdText = htmlToMarkdown(value);
@@ -70,18 +80,29 @@
     await applySurround('\n```\n', '\n```\n', 'code');
   }
 
-  async function insertSnippet(snippet: string) {
-    const ta = mdTextarea;
-    const start = ta?.selectionStart ?? mdText.length;
-    const end = ta?.selectionEnd ?? mdText.length;
-    mdText = `${mdText.slice(0, start)}\n${snippet}\n${mdText.slice(end)}`;
+  /** Insert snippet at a fixed offset (does not re-read the cursor). */
+  async function insertAt(start: number, end: number, snippet: string) {
+    const block = `\n${snippet}\n`;
+    mdText = `${mdText.slice(0, start)}${block}${mdText.slice(end)}`;
     syncFromMd();
     await tick();
+    const ta = mdTextarea;
     if (ta) {
       ta.focus();
-      const pos = start + snippet.length + 2;
+      const pos = start + block.length;
       ta.setSelectionRange(pos, pos);
     }
+    return block;
+  }
+
+  function removeSnippet(snippet: string) {
+    const block = `\n${snippet}\n`;
+    if (mdText.includes(block)) {
+      mdText = mdText.replace(block, '\n');
+    } else {
+      mdText = mdText.replace(snippet, '');
+    }
+    syncFromMd();
   }
 
   function pickMedia(kind: 'image' | 'audio' | 'video') {
@@ -91,36 +112,113 @@
     fileInput.click();
   }
 
+  function mediaSnippet(
+    kind: 'image' | 'audio' | 'video',
+    url: string,
+    hdrUrl?: string | null
+  ): string {
+    if (kind === 'image') return `![](${url})`;
+    if (kind === 'audio') return `<audio controls src="${url}"></audio>`;
+    return videoEmbedHtml(url, hdrUrl);
+  }
+
+  function uploadWithProgress(
+    file: File,
+    reservedName: string,
+    onProgress: (pct: number) => void
+  ): Promise<{ url: string; hdrUrl?: string | null }> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/admin/upload');
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload = () => {
+        let body: { url?: string; hdrUrl?: string | null; message?: string } = {};
+        try {
+          body = JSON.parse(xhr.responseText);
+        } catch {
+          /* keep empty */
+        }
+        if (xhr.status >= 200 && xhr.status < 300 && body.url) {
+          onProgress(100);
+          resolve({ url: body.url, hdrUrl: body.hdrUrl ?? null });
+        } else {
+          reject(new Error(body.message ?? `Upload failed (${xhr.status})`));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Upload failed'));
+      xhr.onabort = () => reject(new Error('Upload aborted'));
+      const body = new FormData();
+      body.append('file', file);
+      body.append('name', reservedName);
+      xhr.send(body);
+    });
+  }
+
   async function handleFile() {
     const file = fileInput.files?.[0];
     if (!file) return;
-    uploading = true;
+
+    // Lock insertion point before the async upload so a moved cursor cannot
+    // drop the embed somewhere else.
+    const ta = mdTextarea;
+    const start = ta?.selectionStart ?? mdText.length;
+    const end = ta?.selectionEnd ?? mdText.length;
+
+    // Videos always use .mp4 primary (server may also write uuid.hdr.*)
+    const srcExt = (file.name.split('.').pop() ?? '').toLowerCase();
+    const reservedExt =
+      pendingKind === 'video' ? 'mp4' : srcExt;
+    const reservedName = `${crypto.randomUUID()}.${reservedExt}`;
+    const url = `/media/${reservedName}`;
+    const snippet = mediaSnippet(pendingKind, url);
+    const id = reservedName;
+
+    await insertAt(start, end, snippet);
+    uploads = [...uploads, { id, snippet, progress: 0 }];
+
     try {
-      const body = new FormData();
-      body.append('file', file);
-      const res = await fetch('/admin/upload', { method: 'POST', body });
-      if (!res.ok) {
-        let message = `Upload failed (${res.status})`;
-        try {
-          message = (await res.json()).message ?? message;
-        } catch {
-          /* keep default */
+      const result = await uploadWithProgress(file, reservedName, (pct) => {
+        uploads = uploads.map((u) => (u.id === id ? { ...u, progress: pct } : u));
+      });
+      if (pendingKind === 'video' && result.hdrUrl) {
+        const finalSnippet = mediaSnippet('video', result.url, result.hdrUrl);
+        if (mdText.includes(snippet)) {
+          mdText = mdText.replace(snippet, finalSnippet);
+          syncFromMd();
         }
-        throw new Error(message);
       }
-      const { url } = await res.json();
-      const snippet =
-        pendingKind === 'image'
-          ? `![](${url})`
-          : pendingKind === 'audio'
-            ? `<audio controls src="${url}"></audio>`
-            : `<video controls src="${url}"></video>`;
-      await insertSnippet(snippet);
     } catch (e) {
+      removeSnippet(snippet);
       window.alert(e instanceof Error ? e.message : 'Upload failed');
     } finally {
-      uploading = false;
+      uploads = uploads.filter((u) => u.id !== id);
     }
+  }
+
+  /** Highlight pending upload snippets as greyed-out in the markdown backdrop. */
+  function backdropHtml(text: string, jobs: UploadJob[]): string {
+    const esc = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    let html = esc(text);
+    for (const job of jobs) {
+      const needle = esc(job.snippet);
+      if (!needle) continue;
+      html = html.split(needle).join(`<span class="upload-ph">${needle}</span>`);
+    }
+    // Trailing newline is invisible in a <pre> unless padded
+    if (text.endsWith('\n')) html += ' ';
+    return html;
+  }
+
+  $: highlighted = backdropHtml(mdText, uploads);
+  $: uploading = uploads.length > 0;
+
+  function syncBackdropScroll() {
+    if (!backdropEl || !mdTextarea) return;
+    backdropEl.scrollTop = mdTextarea.scrollTop;
+    backdropEl.scrollLeft = mdTextarea.scrollLeft;
   }
 
   const tools: { label: string; title: string; action: () => void; cls?: string }[] = [
@@ -149,15 +247,15 @@
           type="button"
           class="px-2 py-0.5 border border-[#4a4a4a] hover:border-white hover:bg-[#2f2f2f] disabled:opacity-40 disabled:hover:border-[#4a4a4a] disabled:hover:bg-transparent {tool.cls ?? ''}"
           title={tool.title}
-          disabled={uploading || mode === 'preview'}
+          disabled={mode === 'preview'}
           on:mousedown|preventDefault
           on:click={tool.action}
         >
           {tool.label}
         </button>
       {/each}
-      {#if uploading}
-        <span class="pl-2 opacity-70">uploading…</span>
+      {#if uploadProgress !== null}
+        <span class="pl-2 opacity-40" aria-live="polite">uploading {uploadProgress}%</span>
       {/if}
     </div>
     <div class="flex shrink-0" role="group" aria-label="Editor mode">
@@ -178,14 +276,26 @@
     </div>
   </div>
   {#if mode === 'markdown'}
-    <textarea
-      bind:this={mdTextarea}
-      bind:value={mdText}
-      on:input={syncFromMd}
-      class="w-full min-h-[180px] h-[calc(100vh-530px)] p-3 bg-transparent text-white focus:outline-none resize-y"
-      spellcheck="false"
-      aria-label="Post content (markdown)"
-    ></textarea>
+    <div class="editor-wrap relative w-full min-h-[180px] h-[calc(100vh-530px)]">
+      {#if uploading}
+        <!-- Backdrop greys out pending ![](/media/…) (and audio/video) embeds -->
+        <pre
+          bind:this={backdropEl}
+          class="editor-backdrop pointer-events-none absolute inset-0 m-0 overflow-hidden p-3 whitespace-pre-wrap break-words"
+          aria-hidden="true">{@html highlighted}</pre>
+      {/if}
+      <textarea
+        bind:this={mdTextarea}
+        bind:value={mdText}
+        on:input={syncFromMd}
+        on:scroll={syncBackdropScroll}
+        class="editor-surface relative z-[1] w-full h-full min-h-[180px] p-3 bg-transparent focus:outline-none resize-y {uploading
+          ? 'text-transparent caret-white'
+          : 'text-white'}"
+        spellcheck="false"
+        aria-label="Post content (markdown)"
+      ></textarea>
+    </div>
   {:else}
     <!-- eslint-disable-next-line svelte/no-at-html-tags -- admin-authored content -->
     <div
@@ -198,3 +308,20 @@
 </div>
 <input type="hidden" {name} value={current} />
 <input type="file" class="hidden" bind:this={fileInput} on:change={handleFile} />
+
+<style>
+  .editor-wrap .editor-backdrop,
+  .editor-wrap .editor-surface {
+    font-family: 'Anonymous Pro', monospace;
+    font-size: 16px;
+    line-height: 1.5;
+    letter-spacing: normal;
+    tab-size: 2;
+  }
+  .editor-backdrop {
+    color: #ffffff;
+  }
+  .editor-backdrop :global(.upload-ph) {
+    opacity: 0.35;
+  }
+</style>

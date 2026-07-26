@@ -2,7 +2,7 @@ import { fail } from '@sveltejs/kit';
 import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { MEDIA_TYPES, UPLOAD_DIR } from '$lib/server/media';
+import { deleteUnusedMedia, isValidMediaName, MEDIA_TYPES, UPLOAD_DIR } from '$lib/server/media';
 import { parseTar } from '$lib/server/tar';
 import { safeClientAddress } from '$lib/server/client-ip';
 import {
@@ -19,6 +19,11 @@ import { getProjects, saveProjects } from '$lib/server/projects';
 import { getPosts, savePosts, uniqueSlug } from '$lib/server/posts';
 import { getMetrics } from '$lib/server/metrics';
 import type { Actions, PageServerLoad } from './$types';
+
+async function pruneOrphanMedia() {
+  const posts = await getPosts();
+  await deleteUnusedMedia(posts.map((p) => p.html));
+}
 
 export const load: PageServerLoad = async ({ cookies }) => {
   const authed = isAuthed(cookies);
@@ -136,6 +141,7 @@ export const actions: Actions = {
       });
     }
     await savePosts(posts);
+    await pruneOrphanMedia();
   },
 
   deletePost: async ({ request, cookies }) => {
@@ -144,6 +150,7 @@ export const actions: Actions = {
     const id = String(form.get('id') ?? '');
     const posts = await getPosts();
     await savePosts(posts.filter((p) => p.id !== id));
+    await pruneOrphanMedia();
   },
 
   restore: async ({ request, cookies }) => {
@@ -166,7 +173,7 @@ export const actions: Actions = {
         .map((e) => ({ name: e.name.slice('uploads/'.length), data: e.data }))
         .filter(
           (e) =>
-            /^[a-z0-9-]+\.[a-z0-9]+$/i.test(e.name) &&
+            isValidMediaName(e.name) &&
             MEDIA_TYPES[e.name.split('.').pop()?.toLowerCase() ?? '']
         );
     } else {
@@ -218,6 +225,7 @@ export const actions: Actions = {
         await fs.writeFile(path.join(UPLOAD_DIR, m.name), m.data);
       }
     }
+    await pruneOrphanMedia();
     return { restored: true };
   }
 };

@@ -17,6 +17,9 @@ RUN npm run build
 
 FROM node:22-alpine
 
+# ffmpeg remuxes uploads to strip video container metadata
+RUN apk add --no-cache ffmpeg
+
 ENV NODE_ENV=production
 # Persistent site data (JSON stores + uploads) — mount a volume here
 ENV DATA_DIR=/data
