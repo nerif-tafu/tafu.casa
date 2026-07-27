@@ -10,15 +10,43 @@ export type Post = {
   date: string;
   /** HTML produced by the admin WYSIWYG editor */
   html: string;
+  /** When false, listed greyed-out and unlinked on /projects. Defaults to true. */
+  active: boolean;
+  /** Optional /media/… URL used first for link-preview embeds. */
+  coverImage: string;
 };
 
 const DATA_FILE = path.join(DATA_DIR, 'posts.json');
+
+function normalizePost(raw: Record<string, unknown>): Post | null {
+  const title = typeof raw.title === 'string' ? raw.title : '';
+  const slug = typeof raw.slug === 'string' ? raw.slug : '';
+  const id = typeof raw.id === 'string' ? raw.id : '';
+  if (!title || !slug || !id) return null;
+  const cover =
+    typeof raw.coverImage === 'string' && raw.coverImage.startsWith('/media/')
+      ? raw.coverImage
+      : '';
+  return {
+    id,
+    slug,
+    title,
+    date: typeof raw.date === 'string' ? raw.date : '',
+    html: typeof raw.html === 'string' ? raw.html : '',
+    // Missing field → active (backwards compatible with older posts.json)
+    active: raw.active !== false,
+    coverImage: cover
+  };
+}
 
 export async function getPosts(): Promise<Post[]> {
   try {
     const raw = await fs.readFile(DATA_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((p) => (p && typeof p === 'object' ? normalizePost(p as Record<string, unknown>) : null))
+      .filter((p): p is Post => p !== null);
   } catch {
     return [];
   }

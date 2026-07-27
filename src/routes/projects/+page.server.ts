@@ -6,6 +6,6 @@ export const load: PageServerLoad = async () => {
   return {
     posts: posts
       .sort((a, b) => b.date.localeCompare(a.date))
-      .map(({ slug, title, date }) => ({ slug, title, date }))
+      .map(({ slug, title, date, active }) => ({ slug, title, date, active }))
   };
 };

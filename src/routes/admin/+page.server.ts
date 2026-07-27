@@ -22,7 +22,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 async function pruneOrphanMedia() {
   const posts = await getPosts();
-  await deleteUnusedMedia(posts.map((p) => p.html));
+  await deleteUnusedMedia(posts.flatMap((p) => [p.html, p.coverImage].filter(Boolean)));
 }
 
 export const load: PageServerLoad = async ({ cookies }) => {
@@ -121,6 +121,11 @@ export const actions: Actions = {
     const title = String(form.get('title') ?? '').trim();
     const date = String(form.get('date') ?? '').trim();
     const html = String(form.get('html') ?? '');
+    const active = form.getAll('active').pop() === '1';
+    const coverRaw = String(form.get('coverImage') ?? '').trim();
+    const coverImage = /^\/media\/[a-f0-9-]{36}(?:\.hdr)?\.[a-z0-9]+$/i.test(coverRaw)
+      ? coverRaw
+      : '';
     if (!title) return fail(400, { error: 'Title is required' });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return fail(400, { error: 'Date is required' });
 
@@ -131,13 +136,17 @@ export const actions: Actions = {
       post.title = title;
       post.date = date;
       post.html = html;
+      post.active = active;
+      post.coverImage = coverImage;
     } else {
       posts.push({
         id: randomUUID(),
         slug: uniqueSlug(title, posts),
         title,
         date,
-        html
+        html,
+        active,
+        coverImage
       });
     }
     await savePosts(posts);
@@ -212,7 +221,12 @@ export const actions: Actions = {
           slug: str(raw.slug),
           title: str(raw.title),
           date: str(raw.date),
-          html: str(raw.html)
+          html: str(raw.html),
+          active: raw.active !== false,
+          coverImage:
+            typeof raw.coverImage === 'string' && raw.coverImage.startsWith('/media/')
+              ? raw.coverImage
+              : ''
         };
       })
       .filter((p) => p.title && p.slug);

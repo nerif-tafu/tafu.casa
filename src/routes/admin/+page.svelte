@@ -30,7 +30,14 @@
    * Post being edited comes from the URL: /admin?tab=projects&edit=<slug|new>.
    * Kept in a stable object so data invalidations don't clobber in-progress edits.
    */
-  let editingPost: { id: string; title: string; date: string; html: string } | null = null;
+  let editingPost: {
+    id: string;
+    title: string;
+    date: string;
+    html: string;
+    active: boolean;
+    coverImage: string;
+  } | null = null;
   $: syncEditing($page.url.searchParams.get('edit'), data.posts);
 
   function syncEditing(param: string | null, posts: PageData['posts']) {
@@ -40,7 +47,7 @@
     }
     if (param === 'new') {
       if (!editingPost || editingPost.id !== '') {
-        editingPost = { id: '', title: '', date: today, html: '' };
+        editingPost = { id: '', title: '', date: today, html: '', active: true, coverImage: '' };
       }
       return;
     }
@@ -50,8 +57,53 @@
       return;
     }
     if (!editingPost || editingPost.id !== post.id) {
-      editingPost = { id: post.id, title: post.title, date: post.date, html: post.html };
+      editingPost = {
+        id: post.id,
+        title: post.title,
+        date: post.date,
+        html: post.html,
+        active: post.active !== false,
+        coverImage: post.coverImage ?? ''
+      };
     }
+  }
+
+  let coverUploading = false;
+  let coverFileInput: HTMLInputElement;
+
+  async function uploadCoverImage() {
+    const file = coverFileInput?.files?.[0];
+    if (!file || !editingPost) return;
+    coverUploading = true;
+    try {
+      const ext = (file.name.split('.').pop() ?? 'jpg').toLowerCase();
+      const reservedName = `${crypto.randomUUID()}.${ext}`;
+      const body = new FormData();
+      body.append('file', file);
+      body.append('name', reservedName);
+      const res = await fetch('/admin/upload', { method: 'POST', body });
+      if (!res.ok) {
+        let message = `Upload failed (${res.status})`;
+        try {
+          message = (await res.json()).message ?? message;
+        } catch {
+          /* keep default */
+        }
+        throw new Error(message);
+      }
+      const { url } = await res.json();
+      editingPost = { ...editingPost, coverImage: url };
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      coverUploading = false;
+      if (coverFileInput) coverFileInput.value = '';
+    }
+  }
+
+  function clearCoverImage() {
+    if (!editingPost) return;
+    editingPost = { ...editingPost, coverImage: '' };
   }
 
   let addingSite = false;
@@ -210,6 +262,51 @@
           <input class={input} type="date" name="date" value={editingPost.date} required />
         </div>
         <RichEditor name="html" value={editingPost.html} />
+        <div class="border border-[#4a4a4a] p-3 space-y-2">
+          <p class="text-sm opacity-70">
+            Link preview image — used on Discord, Messenger, etc. (falls back to the first photo in
+            the writeup, then the site favicon)
+          </p>
+          <input type="hidden" name="coverImage" value={editingPost.coverImage} />
+          {#if editingPost.coverImage}
+            <img
+              src={editingPost.coverImage}
+              alt="Link preview"
+              class="max-h-40 max-w-full border border-[#4a4a4a]"
+            />
+          {/if}
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              class={btnGhost}
+              disabled={coverUploading}
+              on:click={() => coverFileInput.click()}
+              >{coverUploading ? 'Uploading…' : editingPost.coverImage ? 'Replace image' : 'Upload image'}</button
+            >
+            {#if editingPost.coverImage}
+              <button type="button" class={btnGhost} on:click={clearCoverImage}>Remove</button>
+            {/if}
+          </div>
+          <input
+            type="file"
+            class="hidden"
+            accept="image/*"
+            bind:this={coverFileInput}
+            on:change={uploadCoverImage}
+          />
+        </div>
+        <label class="flex items-center gap-2 select-none">
+          <input type="hidden" name="active" value="0" />
+          <input
+            type="checkbox"
+            name="active"
+            value="1"
+            checked={editingPost.active}
+            class="accent-white"
+          />
+          <span>Active</span>
+          <span class="opacity-50 text-sm">— inactive projects show greyed out and unlinked on /projects</span>
+        </label>
         <div class="flex gap-2">
           <button class={btn} type="submit">Save</button>
           <a class={btnGhost} href="/admin?tab=projects">Cancel</a>

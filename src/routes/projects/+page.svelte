@@ -8,6 +8,10 @@
 <svelte:head>
   <title>tafu.casa - projects</title>
   <meta name="description" content="Project writeups on tafu.casa" />
+  <meta property="og:title" content="tafu.casa - projects" />
+  <meta property="og:description" content="Project writeups on tafu.casa" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary" />
 </svelte:head>
 
 <h3 class="text-lg font-bold mb-2">Projects</h3>
@@ -20,7 +24,11 @@
     {#each data.posts as post (post.slug)}
       <div class="flex gap-4">
         <span class="text-[#778899] whitespace-nowrap">{formatDate(post.date)}</span>
-        <a href="/projects/{post.slug}" class="hover:underline">{post.title}</a>
+        {#if post.active}
+          <a href="/projects/{post.slug}" class="hover:underline">{post.title}</a>
+        {:else}
+          <span class="opacity-40 cursor-default" title="Deactivated">{post.title}</span>
+        {/if}
       </div>
     {/each}
   </div>
